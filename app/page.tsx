@@ -82,7 +82,6 @@ export default function Home() {
 
       const leadYear = String(date.getFullYear());
 
-      // ✅ Count all valid leads (even if no name)
       if (!leadCountsByYear.has(leadYear)) leadCountsByYear.set(leadYear, 0);
       leadCountsByYear.set(leadYear, leadCountsByYear.get(leadYear)! + 1);
 
@@ -128,6 +127,106 @@ export default function Home() {
     window.leadCountsByYear = leadCountsByYear;
     // @ts-ignore
     window.sourceYearMatrix = sourceYearMatrix;
+  };
+
+  const generateReport = () => {
+    // @ts-ignore
+    if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
+
+    // @ts-ignore
+    const leadsRaw: any[] = window['leadsRaw'];
+    // @ts-ignore
+    const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
+    // @ts-ignore
+    const sourceYearMatrix: Map<string, Map<string, number>> = window['sourceYearMatrix'];
+
+    const yearly = new Map<string, { leads: number; conversions: number }>();
+    const brokerages = new Map<string, { leads: number; conversions: number }>();
+    const sources = new Map<string, { leads: number; conversions: number }>();
+    const sourcesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
+
+    parsedData.forEach((row: any) => {
+      const year = row.leadYear;
+      const source = (row.source || 'N/A').toUpperCase().trim();
+      const brokerage = row.company || 'Unknown';
+
+      if (!yearly.has(year)) yearly.set(year, { leads: leadCountsByYear.get(year) || 0, conversions: 0 });
+      if (row.isConversion) yearly.get(year)!.conversions += 1;
+
+      if (!brokerages.has(brokerage)) brokerages.set(brokerage, { leads: 0, conversions: 0 });
+      brokerages.get(brokerage)!.leads += 1;
+      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+
+      if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
+      if (row.isConversion) sources.get(source)!.conversions += 1;
+
+      if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
+      const byYear = sourcesByYear.get(year)!;
+      if (!byYear.has(source)) {
+        byYear.set(source, { leads: sourceYearMatrix.get(year)?.get(source) || 0, conversions: 0 });
+      }
+      if (row.isConversion) byYear.get(source)!.conversions += 1;
+    });
+
+    const sortMap = (map: Map<string, any>) =>
+      Array.from(map.entries())
+        .map(([name, data]) => ({
+          name,
+          ...data,
+          rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
+        }))
+        .filter((entry) => entry.leads > 0)
+        .sort((a, b) => b.conversions - a.conversions);
+
+    const sortedReport = {
+      yearly: sortMap(yearly),
+      brokerages: sortMap(brokerages),
+      sources: sortMap(sources),
+      sourcesByYear: Array.from(sourcesByYear.entries())
+        .map(([year, srcMap]) => ({
+          year,
+          sources: sortMap(srcMap),
+        }))
+        .filter((block) => block.sources.length > 0),
+    };
+
+    setReport(sortedReport);
+  };
+
+  const downloadCSV = () => {
+    // @ts-ignore
+    const data = window.conversions || [];
+    if (!data.length) return alert("No conversion data to download.");
+
+    const header = [
+      'Agent Name',
+      'Brokerage',
+      'Hire Date (YYYY-MM)',
+      'Lead Source',
+      'Lead Year',
+      'Hire vs. Lead Gap (yrs)'
+    ];
+
+    const rows = data.map((row: any) => [
+      row.agent,
+      row.company,
+      row.date,
+      row.source || 'N/A',
+      row.leadYear || 'N/A',
+      row.gap || 'N/A'
+    ]);
+
+    const csvContent = [header, ...rows]
+      .map((e: (string | number)[]) => e.map((v: string | number) => `"${v}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'converted_agents.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
