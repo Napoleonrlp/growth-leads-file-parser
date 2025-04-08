@@ -64,6 +64,7 @@ export default function Home() {
 
     const leadMap = new Map<string, { source: string; leadYear: string }>();
     const validLeads: any[] = [];
+    const leadCountsByYear = new Map<string, number>();
 
     leads.forEach((row: any) => {
       const name = row['lead_name']?.toString().trim();
@@ -77,6 +78,9 @@ export default function Home() {
       if (isNaN(date.getTime())) return;
 
       const leadYear = String(date.getFullYear());
+
+      if (!leadCountsByYear.has(leadYear)) leadCountsByYear.set(leadYear, 0);
+      leadCountsByYear.set(leadYear, leadCountsByYear.get(leadYear)! + 1);
 
       if (name) {
         validLeads.push(row);
@@ -106,6 +110,8 @@ export default function Home() {
     window.conversions = matched.filter((m) => m.isConversion);
     // @ts-ignore
     window.leadsRaw = validLeads;
+    // @ts-ignore
+    window.leadCountsByYear = leadCountsByYear;
   };
 
   const generateReport = () => {
@@ -114,6 +120,8 @@ export default function Home() {
 
     // @ts-ignore
     const leadsRaw: any[] = window['leadsRaw'];
+    // @ts-ignore
+    const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
 
     const yearly = new Map<string, { leads: number; conversions: number }>();
     const brokerages = new Map<string, { leads: number; conversions: number }>();
@@ -142,8 +150,7 @@ export default function Home() {
       const source = (row.source || 'N/A').toUpperCase().trim();
       const brokerage = row.company || 'Unknown';
 
-      if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
-      yearly.get(year)!.leads += 1;
+      if (!yearly.has(year)) yearly.set(year, { leads: leadCountsByYear.get(year) || 0, conversions: 0 });
       if (row.isConversion) yearly.get(year)!.conversions += 1;
 
       if (!brokerages.has(brokerage)) brokerages.set(brokerage, { leads: 0, conversions: 0 });
