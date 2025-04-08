@@ -14,8 +14,11 @@ export default function Home() {
 
     const allCleanedData: any[] = [];
 
+    // Convert the FileList to a proper array
+    const fileArray = Array.from(files);
+
     await Promise.all(
-      Array.from(files).map(async (file) => {
+      fileArray.map(async (file) => {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -30,6 +33,7 @@ export default function Home() {
 
             if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
 
+            // Convert "Last, First" to "First Last"
             const nameParts = nameRaw.split(',').map((s: string) => s.trim());
             const nameFormatted =
               nameParts.length === 2
@@ -66,7 +70,7 @@ export default function Home() {
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const leads = XLSX.utils.sheet_to_json(worksheet);
 
-    const leadMap = new Map<string, string>(); // name → source
+    const leadMap = new Map<string, string>(); // Map agent name => source
 
     leads.forEach((row: any) => {
       const name = row['B']?.toString().trim();
@@ -77,7 +81,6 @@ export default function Home() {
     const matched = parsedData.map((agent) => {
       const name = agent.agent.toLowerCase();
       const source = leadMap.get(name);
-
       return {
         ...agent,
         isConversion: !!source,
@@ -89,7 +92,7 @@ export default function Home() {
     setConversions(matched.filter((m) => m.isConversion));
   };
 
-  // Generate report
+  // Generate report summary
   const generateReport = () => {
     console.log('✅ Generate Report clicked');
 
@@ -106,18 +109,18 @@ export default function Home() {
 
       if (!year) return;
 
-      // Year
+      // Update yearly counts
       if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
       yearly.get(year)!.leads += 1;
       if (row.isConversion) yearly.get(year)!.conversions += 1;
 
-      // Brokerage
+      // Update brokerage counts
       if (!brokerages.has(brokerage))
         brokerages.set(brokerage, { leads: 0, conversions: 0 });
       brokerages.get(brokerage)!.leads += 1;
       if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
 
-      // Source
+      // Update source counts
       if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
       sources.get(source)!.leads += 1;
       if (row.isConversion) sources.get(source)!.conversions += 1;
