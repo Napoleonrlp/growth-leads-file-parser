@@ -82,6 +82,7 @@ export default function Home() {
 
       const leadYear = String(date.getFullYear());
 
+      // ✅ Count all valid leads (even if no name)
       if (!leadCountsByYear.has(leadYear)) leadCountsByYear.set(leadYear, 0);
       leadCountsByYear.set(leadYear, leadCountsByYear.get(leadYear)! + 1);
 
@@ -91,10 +92,13 @@ export default function Home() {
       yearMap.set(source, yearMap.get(source)! + 1);
 
       if (name) {
-        validLeads.push(row);
         const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
-        leadMap.set(normalizedName, { source, leadYear });
+        if (!leadMap.has(normalizedName)) {
+          leadMap.set(normalizedName, { source, leadYear });
+        }
       }
+
+      validLeads.push(row);
     });
 
     const matched = parsedData.map((agent) => {
@@ -126,152 +130,45 @@ export default function Home() {
     window.sourceYearMatrix = sourceYearMatrix;
   };
 
-  const generateReport = () => {
-    // @ts-ignore
-    if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
-
-    // @ts-ignore
-    const leadsRaw: any[] = window['leadsRaw'];
-    // @ts-ignore
-    const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
-    // @ts-ignore
-    const sourceYearMatrix: Map<string, Map<string, number>> = window['sourceYearMatrix'];
-
-    const yearly = new Map<string, { leads: number; conversions: number }>();
-    const brokerages = new Map<string, { leads: number; conversions: number }>();
-    const sources = new Map<string, { leads: number; conversions: number }>();
-    const sourcesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
-
-    parsedData.forEach((row: any) => {
-      const year = row.leadYear;
-      const source = (row.source || 'N/A').toUpperCase().trim();
-      const brokerage = row.company || 'Unknown';
-
-      if (!yearly.has(year)) yearly.set(year, { leads: leadCountsByYear.get(year) || 0, conversions: 0 });
-      if (row.isConversion) yearly.get(year)!.conversions += 1;
-
-      if (!brokerages.has(brokerage)) brokerages.set(brokerage, { leads: 0, conversions: 0 });
-      brokerages.get(brokerage)!.leads += 1;
-      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
-
-      if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
-      if (row.isConversion) sources.get(source)!.conversions += 1;
-
-      if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
-      const byYear = sourcesByYear.get(year)!;
-      if (!byYear.has(source)) {
-        byYear.set(source, { leads: sourceYearMatrix.get(year)?.get(source) || 0, conversions: 0 });
-      }
-      if (row.isConversion) byYear.get(source)!.conversions += 1;
-    });
-
-    const sortMap = (map: Map<string, any>) =>
-      Array.from(map.entries())
-        .map(([name, data]) => ({
-          name,
-          ...data,
-          rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
-        }))
-        .filter((entry) => entry.leads > 0)
-        .sort((a, b) => b.conversions - a.conversions);
-
-    const sortedReport = {
-      yearly: sortMap(yearly),
-      brokerages: sortMap(brokerages),
-      sources: sortMap(sources),
-      sourcesByYear: Array.from(sourcesByYear.entries())
-        .map(([year, srcMap]) => ({
-          year,
-          sources: sortMap(srcMap),
-        }))
-        .filter((block) => block.sources.length > 0),
-    };
-
-    setReport(sortedReport);
-  };
-
-  const downloadCSV = () => {
-    // @ts-ignore
-    const data = window.conversions || [];
-    if (!data.length) return alert("No conversion data to download.");
-
-    const header = [
-      'Agent Name',
-      'Brokerage',
-      'Hire Date (YYYY-MM)',
-      'Lead Source',
-      'Lead Year',
-      'Hire vs. Lead Gap (yrs)'
-    ];
-
-    const rows = data.map((row: any) => [
-      row.agent,
-      row.company,
-      row.date,
-      row.source || 'N/A',
-      row.leadYear || 'N/A',
-      row.gap || 'N/A'
-    ]);
-
-    const csvContent = [header, ...rows]
-      .map((e: (string | number)[]) => e.map((v: string | number) => `"${v}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'converted_agents.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <main className="p-4 md:p-8 max-w-5xl mx-auto">
+    <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
       <h1 className="text-3xl font-bold mb-6">📊 Growth & Leads File Parser</h1>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center mb-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
         <input type="file" multiple onChange={handleFileUpload} className="file-input" />
         <input type="file" onChange={handleLeadsUpload} className="file-input" />
-        <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
-        <button onClick={downloadCSV} className="btn btn-secondary">⬇️ Download Converted Agents CSV</button>
+        <button onClick={() => generateReport()} className="btn btn-primary">Generate Report</button>
+        <button onClick={() => downloadCSV()} className="btn btn-outline">⬇️ Export CSV</button>
       </div>
 
       {report && (
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold">🎯 Lead-Year Conversions</h2>
-            <ul className="list-disc ml-5">
-              {report.yearly.map((item: any) => (
-                <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
-              ))}
-            </ul>
-          </div>
+        <section className="space-y-8">
+          {[{
+            title: "🎯 Lead-Year Conversions",
+            data: report.yearly
+          }, {
+            title: "🏢 Top Converting Brokerages",
+            data: report.brokerages
+          }, {
+            title: "🏷️ Top Source Tags (All)",
+            data: report.sources
+          }].map((section) => (
+            <div key={section.title} className="bg-white rounded-xl shadow p-5">
+              <h2 className="text-lg font-semibold mb-2">{section.title}</h2>
+              <ul className="list-disc list-inside space-y-1">
+                {section.data.map((item: any) => (
+                  <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          <div>
-            <h2 className="text-xl font-semibold">🏢 Top Converting Brokerages</h2>
-            <ul className="list-disc ml-5">
-              {report.brokerages.map((item: any) => (
-                <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold">🏷️ Top Source Tags (All)</h2>
-            <ul className="list-disc ml-5">
-              {report.sources.map((item: any) => (
-                <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold">📆 Source Breakdown by Lead Year (All Conversions)</h2>
+          <div className="bg-white rounded-xl shadow p-5">
+            <h2 className="text-lg font-semibold mb-2">📆 Source Breakdown by Lead Year (All Conversions)</h2>
             {report.sourcesByYear.map((block: any) => (
-              <div key={block.year} className="mt-4">
-                <h3 className="text-lg font-medium">{block.year}</h3>
-                <ul className="list-disc ml-5">
+              <div key={block.year} className="mb-4">
+                <h3 className="text-base font-medium mb-1">{block.year}</h3>
+                <ul className="list-disc list-inside space-y-1">
                   {block.sources.map((s: any) => (
                     <li key={s.name}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
                   ))}
