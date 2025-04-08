@@ -62,48 +62,51 @@ export default function Home() {
 
 
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const leads = XLSX.utils.sheet_to_json(worksheet);
-    console.log("🔍 First row of leads file:", leads[0]);
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const leads = XLSX.utils.sheet_to_json(worksheet);
 
-// DEBUG: expose to global scope
-// @ts-ignore
-window.leads = leads;
+  console.log("🔍 First row of leads file:", leads[0]);
 
+  const leadMap = new Map<string, string>();
 
-    const leadMap = new Map<string, string>();
+  leads.forEach((row: any) => {
+    const name = row['lead_name']?.toString().trim();
+    const blob = row['lead_text'] || row['lead_agent_text'] || '';
+    const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+    const source = sourceMatch ? sourceMatch[1].trim() : 'Unknown';
 
-    leads.forEach((row: any) => {
-      const name = row['B']?.toString().trim();
-      const source = row['AL']?.toString().trim() || 'Unknown';
-      if (name) leadMap.set(name.toLowerCase(), source);
-    });
+    if (name) {
+      const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
+      leadMap.set(normalizedName, source);
+    }
+  });
 
-    const matched = parsedData.map((agent) => {
-      const name = agent.agent.toLowerCase();
-      const source = leadMap.get(name);
+  const matched = parsedData.map((agent) => {
+    const name = agent.agent.toLowerCase().replace(/\s+/g, ' ').trim();
+    const source = leadMap.get(name);
 
-      return {
-        ...agent,
-        isConversion: !!source,
-        source: source || 'N/A',
-      };
-    });
+    return {
+      ...agent,
+      isConversion: !!source,
+      source: source || 'N/A',
+    };
+  });
 
-    setParsedData(matched);
-    setConversions(matched.filter((m) => m.isConversion));
+  setParsedData(matched);
+  setConversions(matched.filter((m) => m.isConversion));
 
-    // ✅ Debug
-    // @ts-ignore
-    window.parsedData = matched;
-    // @ts-ignore
-    window.conversions = matched.filter((m) => m.isConversion);
-  };
+  // Debug: expose to console
+  // @ts-ignore
+  window.parsedData = matched;
+  // @ts-ignore
+  window.conversions = matched.filter((m) => m.isConversion);
+};
+
 
   const generateReport = () => {
     console.log('✅ Generate Report clicked');
