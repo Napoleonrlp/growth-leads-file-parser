@@ -14,42 +14,44 @@ export default function Home() {
 
     const allCleanedData: any[] = [];
 
-    for (const file of files) {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    await Promise.all(
+      Array.from(files).map(async (file) => {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const cleaned = jsonData
-        .map((row: any) => {
-          const nameRaw = row['C'];
-          const hired = row['J'];
-          const company = row['A'];
-          const dateRaw = row['H'];
+        const cleaned = jsonData
+          .map((row: any) => {
+            const nameRaw = row['C'];
+            const hired = row['J'];
+            const company = row['A'];
+            const dateRaw = row['H'];
 
-          if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
+            if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
 
-          const nameParts = nameRaw.split(',').map((s: string) => s.trim());
-          const nameFormatted =
-            nameParts.length === 2
-              ? `${nameParts[1]} ${nameParts[0]}`
-              : nameRaw;
+            const nameParts = nameRaw.split(',').map((s: string) => s.trim());
+            const nameFormatted =
+              nameParts.length === 2
+                ? `${nameParts[1]} ${nameParts[0]}`
+                : nameRaw;
 
-          const date = new Date(dateRaw);
-          const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}`;
+            const date = new Date(dateRaw);
+            const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1)
+              .toString()
+              .padStart(2, '0')}`;
 
-          return {
-            agent: nameFormatted,
-            company,
-            date: yearMonth,
-          };
-        })
-        .filter(Boolean);
+            return {
+              agent: nameFormatted,
+              company,
+              date: yearMonth,
+            };
+          })
+          .filter(Boolean);
 
-      allCleanedData.push(...cleaned);
-    }
+        allCleanedData.push(...cleaned);
+      })
+    );
 
     setParsedData(allCleanedData);
   };
@@ -101,6 +103,8 @@ export default function Home() {
       const year = row.date?.split('-')[0];
       const brokerage = row.company || 'Unknown';
       const source = row.source || 'Unknown';
+
+      if (!year) return;
 
       // Year
       if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
