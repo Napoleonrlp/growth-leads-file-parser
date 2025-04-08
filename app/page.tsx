@@ -53,6 +53,10 @@ export default function Home() {
     }
 
     setParsedData(allCleanedData);
+
+    // ✅ Debug
+    // @ts-ignore
+    window.parsedData = allCleanedData;
   };
 
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,6 +69,7 @@ export default function Home() {
     const leads = XLSX.utils.sheet_to_json(worksheet);
 
     const leadMap = new Map<string, string>();
+
     leads.forEach((row: any) => {
       const name = row['B']?.toString().trim();
       const source = row['AL']?.toString().trim() || 'Unknown';
@@ -74,6 +79,7 @@ export default function Home() {
     const matched = parsedData.map((agent) => {
       const name = agent.agent.toLowerCase();
       const source = leadMap.get(name);
+
       return {
         ...agent,
         isConversion: !!source,
@@ -83,6 +89,12 @@ export default function Home() {
 
     setParsedData(matched);
     setConversions(matched.filter((m) => m.isConversion));
+
+    // ✅ Debug
+    // @ts-ignore
+    window.parsedData = matched;
+    // @ts-ignore
+    window.conversions = matched.filter((m) => m.isConversion);
   };
 
   const generateReport = () => {
