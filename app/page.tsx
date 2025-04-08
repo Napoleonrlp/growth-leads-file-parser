@@ -7,60 +7,54 @@ export default function Home() {
   const [conversions, setConversions] = useState<any[]>([]);
   const [report, setReport] = useState<any | null>(null);
 
-  // Upload growth & attrition files
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const fileList = e.target.files;
+    if (!fileList) return;
 
+    const files = Array.from(fileList);
     const allCleanedData: any[] = [];
 
-    // Convert the FileList to a proper array
-    const fileArray = Array.from(files);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-    await Promise.all(
-      fileArray.map(async (file) => {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const cleaned = jsonData
+        .map((row: any) => {
+          const nameRaw = row['C'];
+          const hired = row['J'];
+          const company = row['A'];
+          const dateRaw = row['H'];
 
-        const cleaned = jsonData
-          .map((row: any) => {
-            const nameRaw = row['C'];
-            const hired = row['J'];
-            const company = row['A'];
-            const dateRaw = row['H'];
+          if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
 
-            if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
+          const nameParts = nameRaw.split(',').map((s: string) => s.trim());
+          const nameFormatted =
+            nameParts.length === 2
+              ? `${nameParts[1]} ${nameParts[0]}`
+              : nameRaw;
 
-            // Convert "Last, First" to "First Last"
-            const nameParts = nameRaw.split(',').map((s: string) => s.trim());
-            const nameFormatted =
-              nameParts.length === 2
-                ? `${nameParts[1]} ${nameParts[0]}`
-                : nameRaw;
+          const date = new Date(dateRaw);
+          const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1)
+            .toString()
+            .padStart(2, '0')}`;
 
-            const date = new Date(dateRaw);
-            const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1)
-              .toString()
-              .padStart(2, '0')}`;
+          return {
+            agent: nameFormatted,
+            company,
+            date: yearMonth,
+          };
+        })
+        .filter(Boolean);
 
-            return {
-              agent: nameFormatted,
-              company,
-              date: yearMonth,
-            };
-          })
-          .filter(Boolean);
-
-        allCleanedData.push(...cleaned);
-      })
-    );
+      allCleanedData.push(...cleaned);
+    }
 
     setParsedData(allCleanedData);
   };
 
-  // Upload leads file
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -70,8 +64,7 @@ export default function Home() {
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const leads = XLSX.utils.sheet_to_json(worksheet);
 
-    const leadMap = new Map<string, string>(); // Map agent name => source
-
+    const leadMap = new Map<string, string>();
     leads.forEach((row: any) => {
       const name = row['B']?.toString().trim();
       const source = row['AL']?.toString().trim() || 'Unknown';
@@ -92,7 +85,6 @@ export default function Home() {
     setConversions(matched.filter((m) => m.isConversion));
   };
 
-  // Generate report summary
   const generateReport = () => {
     console.log('✅ Generate Report clicked');
 
@@ -109,18 +101,15 @@ export default function Home() {
 
       if (!year) return;
 
-      // Update yearly counts
       if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
       yearly.get(year)!.leads += 1;
       if (row.isConversion) yearly.get(year)!.conversions += 1;
 
-      // Update brokerage counts
       if (!brokerages.has(brokerage))
         brokerages.set(brokerage, { leads: 0, conversions: 0 });
       brokerages.get(brokerage)!.leads += 1;
       if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
 
-      // Update source counts
       if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
       sources.get(source)!.leads += 1;
       if (row.isConversion) sources.get(source)!.conversions += 1;
