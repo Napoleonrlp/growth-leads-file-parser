@@ -264,50 +264,49 @@ export default function Home() {
         🚀 Generate Report
       </button>
 
-      {report && (
-        <div style={{ marginTop: '2rem' }}>
-          <h2>📈 Overall Performance by Year</h2>
-          <ul>
-            {report.yearly.map((y: any) => (
-              <li key={y.year}>
-                <strong>{y.year}</strong>: {y.conversions} hires from {y.leads} leads → {y.rate}
-              </li>
-            ))}
-          </ul>
-
-          <h2>🏢 Top Converting Brokerages</h2>
-          <ul>
-            {report.brokerages.map((b: any, i: number) => (
-              <li key={i}>
-                {b.name}: {b.conversions}/{b.leads} → {b.rate}
-              </li>
-            ))}
-          </ul>
-
-          <h2>🏷️ Top Source Tags</h2>
-          <ul>
-            {report.sources.map((s: any, i: number) => (
-              <li key={i}>
-                {s.tag}: {s.conversions}/{s.leads} → {s.rate}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-<h2>📆 Source Breakdown by Year</h2>
-{report.sourcesByYear.map((yearBlock: any) => (
-  <div key={yearBlock.year} style={{ marginBottom: '1rem' }}>
-    <h3>{yearBlock.year}</h3>
+     {report && (
+  <div style={{ marginTop: '2rem' }}>
+    <h2>📈 Overall Performance by Year</h2>
     <ul>
-      {yearBlock.sources.map((src: any, idx: number) => (
-        <li key={idx}>
-          {src.source}: {src.conversions}/{src.leads} → {src.rate}
+      {report.yearly.map((y: any) => (
+        <li key={y.year}>
+          <strong>{y.year}</strong>: {y.conversions} hires from {y.leads} leads → {y.rate}
         </li>
       ))}
     </ul>
+
+    <h2>🏢 Top Converting Brokerages</h2>
+    <ul>
+      {report.brokerages.map((b: any, i: number) => (
+        <li key={i}>
+          {b.name}: {b.conversions}/{b.leads} → {b.rate}
+        </li>
+      ))}
+    </ul>
+
+    <h2>🏷️ Top Source Tags</h2>
+    <ul>
+      {report.sources.map((s: any, i: number) => (
+        <li key={i}>
+          {s.tag}: {s.conversions}/{s.leads} → {s.rate}
+        </li>
+      ))}
+    </ul>
+
+    <h2>📆 Source Breakdown by Year</h2>
+    {report.sourcesByYear.map((yearBlock: any) => (
+      <div key={yearBlock.year} style={{ marginBottom: '1rem' }}>
+        <h3>{yearBlock.year}</h3>
+        <ul>
+          {yearBlock.sources.map((src: any, idx: number) => (
+            <li key={idx}>
+              {src.source}: {src.conversions}/{src.leads} → {src.rate}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
   </div>
-))}
+)}
+
 
