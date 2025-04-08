@@ -114,13 +114,17 @@ window.leadsRaw = leads;
   const generateReport = () => {
   console.log('✅ Generate Report clicked');
 
-  if (parsedData.length === 0 || typeof window.leadsRaw === 'undefined') return;
+ // @ts-ignore
+if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
+
 
   const yearly = new Map<string, { leads: number; conversions: number }>();
   const brokerages = new Map<string, { leads: number; conversions: number }>();
   const sources = new Map<string, { leads: number; conversions: number }>();
 
-  const leadsRaw: any[] = window.leadsRaw;
+// @ts-ignore
+const leadsRaw: any[] = window['leadsRaw'];
+
 
   // 🟢 Count TOTAL leads per source
   leadsRaw.forEach((row: any) => {
