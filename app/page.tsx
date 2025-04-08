@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 
-// 👇 Add this block
 declare global {
   interface Window {
     parsedData?: any[];
@@ -168,8 +167,7 @@ export default function Home() {
       <h1 className="text-2xl font-bold mb-4">📊 Growth & Leads File Parser</h1>
       <input type="file" multiple onChange={handleFileUpload} className="mb-2" />
       <input type="file" onChange={handleLeadsUpload} className="mb-2" />
-     <button onClick={() => generateReport(parsedData, window.leadsRaw ?? [])} className="px-4 py-2 bg-blue-600 text-white rounded">
-Generate Report</button>
+      <button onClick={() => generateReport(parsedData, window.leadsRaw ?? [])} className="px-4 py-2 bg-blue-600 text-white rounded">Generate Report</button>
       <button onClick={downloadCSV} className="ml-2 px-4 py-2 bg-green-600 text-white rounded">⬇️ Download CSV</button>
 
       {report && (
