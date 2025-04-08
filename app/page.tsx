@@ -103,38 +103,50 @@ export default function Home() {
   };
 
   const generateReport = () => {
-    // @ts-ignore
-    if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
-
-    // @ts-ignore
-    const leadsRaw: any[] = window['leadsRaw'];
+    if (parsedData.length === 0) return;
 
     const yearly = new Map<string, { leads: number; conversions: number }>();
     const matchedYearly = new Map<string, { leads: number; conversions: number }>();
+    const brokerages = new Map<string, { leads: number; conversions: number }>();
+    const sources = new Map<string, { leads: number; conversions: number }>();
+    const matchedSources = new Map<string, { leads: number; conversions: number }>();
     const sourcesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
     const matchedSourcesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
 
     parsedData.forEach((row) => {
       const hireYear = row.date?.split('-')[0];
       const source = (row.source || 'N/A').toUpperCase().trim();
+      const brokerage = row.company || 'Unknown';
       const leadYear = row.leadYear;
 
-      // All conversions (regardless of time logic)
+      // Total
       if (!yearly.has(hireYear)) yearly.set(hireYear, { leads: 0, conversions: 0 });
       yearly.get(hireYear)!.leads += 1;
       if (row.isConversion) yearly.get(hireYear)!.conversions += 1;
 
-      if (!sourcesByYear.has(hireYear)) sourcesByYear.set(hireYear, new Map());
-      const yearMap = sourcesByYear.get(hireYear)!;
-      if (!yearMap.has(source)) yearMap.set(source, { leads: 0, conversions: 0 });
-      yearMap.get(source)!.leads += 1;
-      if (row.isConversion) yearMap.get(source)!.conversions += 1;
+      if (!brokerages.has(brokerage)) brokerages.set(brokerage, { leads: 0, conversions: 0 });
+      brokerages.get(brokerage)!.leads += 1;
+      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
 
-      // Strict match: hireYear >= leadYear
+      if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
+      sources.get(source)!.leads += 1;
+      if (row.isConversion) sources.get(source)!.conversions += 1;
+
+      if (!sourcesByYear.has(hireYear)) sourcesByYear.set(hireYear, new Map());
+      const srcMap = sourcesByYear.get(hireYear)!;
+      if (!srcMap.has(source)) srcMap.set(source, { leads: 0, conversions: 0 });
+      srcMap.get(source)!.leads += 1;
+      if (row.isConversion) srcMap.get(source)!.conversions += 1;
+
+      // Matched logic
       if (row.isConversion && leadYear && parseInt(hireYear) === parseInt(leadYear)) {
         if (!matchedYearly.has(hireYear)) matchedYearly.set(hireYear, { leads: 0, conversions: 0 });
         matchedYearly.get(hireYear)!.leads += 1;
         matchedYearly.get(hireYear)!.conversions += 1;
+
+        if (!matchedSources.has(source)) matchedSources.set(source, { leads: 0, conversions: 0 });
+        matchedSources.get(source)!.leads += 1;
+        matchedSources.get(source)!.conversions += 1;
 
         if (!matchedSourcesByYear.has(hireYear)) matchedSourcesByYear.set(hireYear, new Map());
         const matchedMap = matchedSourcesByYear.get(hireYear)!;
@@ -144,32 +156,24 @@ export default function Home() {
       }
     });
 
+    const sortMap = (map: Map<string, any>) =>
+      Array.from(map.entries())
+        .map(([key, stats]) => ({ name: key, ...stats, rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%' }))
+        .sort((a, b) => b.conversions - a.conversions);
+
     setReport({
-      yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
-        year,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
-      matchedYearly: Array.from(matchedYearly.entries()).map(([year, stats]) => ({
-        year,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
+      yearly: sortMap(yearly),
+      matchedYearly: sortMap(matchedYearly),
+      brokerages: sortMap(brokerages),
+      sources: sortMap(sources),
+      matchedSources: sortMap(matchedSources),
       sourcesByYear: Array.from(sourcesByYear.entries()).map(([year, map]) => ({
         year,
-        sources: Array.from(map.entries()).map(([source, stats]) => ({
-          source,
-          ...stats,
-          rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-        })),
+        sources: sortMap(map),
       })),
       matchedSourcesByYear: Array.from(matchedSourcesByYear.entries()).map(([year, map]) => ({
         year,
-        sources: Array.from(map.entries()).map(([source, stats]) => ({
-          source,
-          ...stats,
-          rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-        })),
+        sources: sortMap(map),
       })),
     });
   };
@@ -183,43 +187,78 @@ export default function Home() {
 
       {report && (
         <div style={{ marginTop: '2rem' }}>
-          <h2>🔥 Total Conversions by Year</h2>
-          <ul>
-            {report.yearly.map((r: any) => (
-              <li key={r.year}>{r.year}: {r.conversions}/{r.leads} → {r.rate}</li>
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>🔥 Total Conversions by Year</h2>
+            <ul>
+              {report.yearly.map((r: any) => (
+                <li key={r.name}>{r.name}: {r.conversions}/{r.leads} → {r.rate}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>🎯 Lead-Year Conversions Only</h2>
+            <ul>
+              {report.matchedYearly.map((r: any) => (
+                <li key={r.name}>{r.name}: {r.conversions}/{r.leads} → {r.rate}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>🏢 Top Converting Brokerages</h2>
+            <ul>
+              {report.brokerages.map((b: any, i: number) => (
+                <li key={i}>{b.name}: {b.conversions}/{b.leads} → {b.rate}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>🏷️ Top Source Tags (All)</h2>
+            <ul>
+              {report.sources.map((s: any, i: number) => (
+                <li key={i}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>🎯 Top Source Tags (Matched Only)</h2>
+            <ul>
+              {report.matchedSources.map((s: any, i: number) => (
+                <li key={i}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>📆 Source Breakdown by Year (All Conversions)</h2>
+            {report.sourcesByYear.map((y: any) => (
+              <div key={y.year}>
+                <h3>{y.year}</h3>
+                <ul>
+                  {y.sources.map((s: any, i: number) => (
+                    <li key={i}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </section>
 
-          <h2>🎯 Lead-Year Conversions Only</h2>
-          <ul>
-            {report.matchedYearly.map((r: any) => (
-              <li key={r.year}>{r.year}: {r.conversions}/{r.leads} → {r.rate}</li>
+          <section style={{ marginBottom: '2rem' }}>
+            <h2>📆 Source Breakdown by Year (Lead-Year Matched Only)</h2>
+            {report.matchedSourcesByYear.map((y: any) => (
+              <div key={y.year}>
+                <h3>{y.year}</h3>
+                <ul>
+                  {y.sources.map((s: any, i: number) => (
+                    <li key={i}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
-
-          <h2>🔥 Source Breakdown by Year (All Conversions)</h2>
-          {report.sourcesByYear.map((y: any) => (
-            <div key={y.year}>
-              <h3>{y.year}</h3>
-              <ul>
-                {y.sources.map((s: any, i: number) => (
-                  <li key={i}>{s.source}: {s.conversions}/{s.leads} → {s.rate}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-
-          <h2>🎯 Source Breakdown by Year (Lead-Year Matched)</h2>
-          {report.matchedSourcesByYear.map((y: any) => (
-            <div key={y.year}>
-              <h3>{y.year}</h3>
-              <ul>
-                {y.sources.map((s: any, i: number) => (
-                  <li key={i}>{s.source}: {s.conversions}/{s.leads} → {s.rate}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          </section>
         </div>
       )}
     </div>
