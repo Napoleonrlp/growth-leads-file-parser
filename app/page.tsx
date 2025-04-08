@@ -65,12 +65,13 @@ export default function Home() {
     const leadMap = new Map<string, { source: string; leadYear: string }>();
     const validLeads: any[] = [];
     const leadCountsByYear = new Map<string, number>();
+    const sourceYearMatrix = new Map<string, Map<string, number>>();
 
     leads.forEach((row: any) => {
       const name = row['lead_name']?.toString().trim();
       const blob = row['lead_text'] || row['lead_agent_text'] || '';
       const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-      const source = sourceMatch ? sourceMatch[1].trim() : 'Unknown';
+      const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
 
       const dateStr = row['lead_created_at'] || row['created_at'];
       if (!dateStr) return;
@@ -81,6 +82,11 @@ export default function Home() {
 
       if (!leadCountsByYear.has(leadYear)) leadCountsByYear.set(leadYear, 0);
       leadCountsByYear.set(leadYear, leadCountsByYear.get(leadYear)! + 1);
+
+      if (!sourceYearMatrix.has(leadYear)) sourceYearMatrix.set(leadYear, new Map());
+      const yearMap = sourceYearMatrix.get(leadYear)!;
+      if (!yearMap.has(source)) yearMap.set(source, 0);
+      yearMap.set(source, yearMap.get(source)! + 1);
 
       if (name) {
         validLeads.push(row);
@@ -112,6 +118,8 @@ export default function Home() {
     window.leadsRaw = validLeads;
     // @ts-ignore
     window.leadCountsByYear = leadCountsByYear;
+    // @ts-ignore
+    window.sourceYearMatrix = sourceYearMatrix;
   };
 
   const generateReport = () => {
@@ -122,28 +130,13 @@ export default function Home() {
     const leadsRaw: any[] = window['leadsRaw'];
     // @ts-ignore
     const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
+    // @ts-ignore
+    const sourceYearMatrix: Map<string, Map<string, number>> = window['sourceYearMatrix'];
 
     const yearly = new Map<string, { leads: number; conversions: number }>();
     const brokerages = new Map<string, { leads: number; conversions: number }>();
     const sources = new Map<string, { leads: number; conversions: number }>();
     const sourcesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
-
-    const sourceTotals = new Map<string, number>();
-
-    leadsRaw.forEach((row: any) => {
-      const blob = row['lead_text'] || row['lead_agent_text'] || '';
-      const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-      const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
-      const dateStr = row['lead_created_at'] || row['created_at'];
-      if (!dateStr) return;
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return;
-      const year = String(date.getFullYear());
-
-      const sourceKey = source.toUpperCase().trim();
-      if (!sourceTotals.has(sourceKey)) sourceTotals.set(sourceKey, 0);
-      sourceTotals.set(sourceKey, sourceTotals.get(sourceKey)! + 1);
-    });
 
     parsedData.forEach((row: any) => {
       const year = row.leadYear;
@@ -157,13 +150,14 @@ export default function Home() {
       brokerages.get(brokerage)!.leads += 1;
       if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
 
-      if (!sources.has(source)) sources.set(source, { leads: sourceTotals.get(source) || 0, conversions: 0 });
+      if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
       if (row.isConversion) sources.get(source)!.conversions += 1;
 
       if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
       const byYear = sourcesByYear.get(year)!;
-      if (!byYear.has(source)) byYear.set(source, { leads: 0, conversions: 0 });
-      byYear.get(source)!.leads += 1;
+      if (!byYear.has(source)) {
+        byYear.set(source, { leads: sourceYearMatrix.get(year)?.get(source) || 0, conversions: 0 });
+      }
       if (row.isConversion) byYear.get(source)!.conversions += 1;
     });
 
@@ -172,7 +166,7 @@ export default function Home() {
         .map(([name, data]) => ({
           name,
           ...data,
-          rate: ((data.conversions / data.leads) * 100).toFixed(2) + '%',
+          rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
         }))
         .sort((a, b) => b.conversions - a.conversions);
 
