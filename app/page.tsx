@@ -41,6 +41,7 @@ export default function Home() {
             agent: nameFormatted,
             company,
             date: yearMonth,
+            hireYear: date.y
           };
         })
         .filter(Boolean);
@@ -98,13 +99,15 @@ export default function Home() {
     const matched = parsedData.map((agent) => {
       const name = agent.agent.toLowerCase().replace(/\s+/g, ' ').trim();
       const match = leadMap.get(name);
-      const hireYear = agent.date.split('-')[0];
+      const hireYear = parseInt(agent.hireYear);
+      const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
 
       return {
         ...agent,
-        isConversion: !!match && parseInt(hireYear) >= parseInt(match.leadYear),
+        isConversion: !!match && hireYear >= (leadYear || 0),
         source: match?.source || 'N/A',
         leadYear: match?.leadYear || null,
+        gap: leadYear ? hireYear - leadYear : 'N/A'
       };
     });
 
@@ -168,7 +171,7 @@ export default function Home() {
           ...data,
           rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
         }))
-        .filter((entry) => entry.leads > 0) // Remove zero-lead entries
+        .filter((entry) => entry.leads > 0)
         .sort((a, b) => b.conversions - a.conversions);
 
     const sortedReport = {
@@ -186,12 +189,41 @@ export default function Home() {
     setReport(sortedReport);
   };
 
+  const downloadCSV = () => {
+    // @ts-ignore
+    const data = window.conversions || [];
+    if (!data.length) return alert("No conversion data to download.");
+
+    const header = ['Agent Name', 'Brokerage', 'Hire Date (YYYY-MM)', 'Lead Source', 'Lead Year', 'Hire vs. Lead Gap (yrs)'];
+    const rows = data.map((row: any) => [
+      row.agent,
+      row.company,
+      row.date,
+      row.source || 'N/A',
+      row.leadYear || 'N/A',
+      row.gap || 'N/A'
+    ]);
+
+    const csvContent = [header, ...rows]
+      .map((e) => e.map((v) => `"${v}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'converted_agents.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ padding: '2rem' }}>
       <h1>📊 Growth & Leads File Parser</h1>
       <input type="file" multiple onChange={handleFileUpload} />
       <input type="file" onChange={handleLeadsUpload} />
       <button onClick={generateReport}>Generate Report</button>
+      <button onClick={downloadCSV} style={{ marginLeft: '1rem' }}>⬇️ Download Converted Agents CSV</button>
 
       {report && (
         <div style={{ marginTop: '2rem' }}>
