@@ -137,7 +137,7 @@ export default function Home() {
       sourceTotals.set(sourceKey, sourceTotals.get(sourceKey)! + 1);
     });
 
-    parsedData.forEach((row) => {
+    parsedData.forEach((row: any) => {
       const year = row.leadYear;
       const source = (row.source || 'N/A').toUpperCase().trim();
       const brokerage = row.company || 'Unknown';
@@ -193,31 +193,31 @@ export default function Home() {
         <div style={{ marginTop: '2rem' }}>
           <h2>🎯 Lead-Year Conversions</h2>
           <ul>
-            {report.yearly.map((item) => (
+            {report.yearly.map((item: any) => (
               <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
             ))}
           </ul>
 
           <h2>🏢 Top Converting Brokerages</h2>
           <ul>
-            {report.brokerages.map((item) => (
+            {report.brokerages.map((item: any) => (
               <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
             ))}
           </ul>
 
           <h2>🏷️ Top Source Tags (All)</h2>
           <ul>
-            {report.sources.map((item) => (
+            {report.sources.map((item: any) => (
               <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
             ))}
           </ul>
 
           <h2>📆 Source Breakdown by Lead Year (All Conversions)</h2>
-          {report.sourcesByYear.map((block) => (
+          {report.sourcesByYear.map((block: any) => (
             <div key={block.year} style={{ marginBottom: '1rem' }}>
               <h3>{block.year}</h3>
               <ul>
-                {block.sources.map((s) => (
+                {block.sources.map((s: any) => (
                   <li key={s.name}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
                 ))}
               </ul>
