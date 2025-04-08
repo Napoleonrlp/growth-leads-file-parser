@@ -189,33 +189,36 @@ export default function Home() {
     setReport(sortedReport);
   };
 
-  const downloadCSV = () => {
-    // @ts-ignore
-    const data = window.conversions || [];
-    if (!data.length) return alert("No conversion data to download.");
+ const downloadCSV = () => {
+  // @ts-ignore
+  const data = window.conversions || [];
+  if (!data.length) return alert("No conversion data to download.");
 
-    const header = ['Agent Name', 'Brokerage', 'Hire Date (YYYY-MM)', 'Lead Source', 'Lead Year', 'Hire vs. Lead Gap (yrs)'];
-    const rows = data.map((row: any) => [
-      row.agent,
-      row.company,
-      row.date,
-      row.source || 'N/A',
-      row.leadYear || 'N/A',
-      row.gap || 'N/A'
-    ]);
+  const header = ['Agent Name', 'Brokerage', 'Hire Date (YYYY-MM)', 'Lead Source', 'Lead Year', 'Hire vs. Lead Gap (yrs)'];
+  const rows = data.map((row: any) => [
+    row.agent,
+    row.company,
+    row.date,
+    row.source || 'N/A',
+    row.leadYear || 'N/A',
+    row.gap || 'N/A'
+  ]);
 
-    const csvContent = [header, ...rows]
-      .map((e) => e.map((v) => `"${v}"`).join(','))
-      .join('\n');
+  const csvContent = [header, ...rows]
+    .map((e: (string | number)[]) =>
+      e.map((v: string | number) => `"${v}"`).join(',')
+    )
+    .join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'converted_agents.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'converted_agents.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 
   return (
     <div style={{ padding: '2rem' }}>
