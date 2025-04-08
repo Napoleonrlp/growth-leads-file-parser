@@ -7,58 +7,59 @@ export default function Home() {
   const [conversions, setConversions] = useState<any[]>([]);
   const [report, setReport] = useState<any | null>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = e.target.files;
-    if (!fileList) return;
+ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const fileList = e.target.files;
+  if (!fileList) return;
 
-    const files = Array.from(fileList);
-    const allCleanedData: any[] = [];
+  const files = Array.from(fileList);
+  const allCleanedData: any[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      console.log("📦 First row of uploaded growth file:", jsonData[0]);
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const cleaned = jsonData
-        .map((row: any) => {
-          const nameRaw = row['C'];
-          const hired = row['J'];
-          const company = row['A'];
-          const dateRaw = row['H'];
+    console.log("📦 First row of uploaded growth file:", jsonData[0]);
 
-          if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
+    const cleaned = jsonData
+      .map((row: any) => {
+        const nameRaw = row['Agent'];
+        const hired = row['Hired'];
+        const company = row['Company Name'];
+        const dateRaw = row['Hire/Termination Date'];
 
-          const nameParts = nameRaw.split(',').map((s: string) => s.trim());
-          const nameFormatted =
-            nameParts.length === 2
-              ? `${nameParts[1]} ${nameParts[0]}`
-              : nameRaw;
+        if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
 
-          const date = new Date(dateRaw);
-          const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}`;
+        // Convert "Last, First" → "First Last"
+        const nameParts = nameRaw.split(',').map((s: string) => s.trim());
+        const nameFormatted =
+          nameParts.length === 2
+            ? `${nameParts[1]} ${nameParts[0]}`
+            : nameRaw;
 
-          return {
-            agent: nameFormatted,
-            company,
-            date: yearMonth,
-          };
-        })
-        .filter(Boolean);
+        // Convert Excel serial date to real Date
+        const date = XLSX.SSF.parse_date_code(dateRaw);
+        const yearMonth = `${date.y}-${String(date.m).padStart(2, '0')}`;
 
-      allCleanedData.push(...cleaned);
-    }
+        return {
+          agent: nameFormatted,
+          company,
+          date: yearMonth,
+        };
+      })
+      .filter(Boolean);
 
-    setParsedData(allCleanedData);
+    allCleanedData.push(...cleaned);
+  }
 
-    // ✅ Debug
-    // @ts-ignore
-    window.parsedData = allCleanedData;
-  };
+  setParsedData(allCleanedData);
+  // Debug
+  // @ts-ignore
+  window.parsedData = allCleanedData;
+};
+
 
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
