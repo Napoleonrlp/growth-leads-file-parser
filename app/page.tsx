@@ -2,6 +2,17 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 
+// 👇 Add this block
+declare global {
+  interface Window {
+    parsedData?: any[];
+    conversions?: any[];
+    leadsRaw?: any[];
+    leadCountsByYear?: Map<string, number>;
+    sourceYearMatrix?: Map<string, Map<string, number>>;
+  }
+}
+
 export default function Home() {
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [conversions, setConversions] = useState<any[]>([]);
