@@ -168,16 +168,19 @@ export default function Home() {
           ...data,
           rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
         }))
+        .filter((entry) => entry.leads > 0) // Remove zero-lead entries
         .sort((a, b) => b.conversions - a.conversions);
 
     const sortedReport = {
       yearly: sortMap(yearly),
       brokerages: sortMap(brokerages),
       sources: sortMap(sources),
-      sourcesByYear: Array.from(sourcesByYear.entries()).map(([year, srcMap]) => ({
-        year,
-        sources: sortMap(srcMap),
-      })),
+      sourcesByYear: Array.from(sourcesByYear.entries())
+        .map(([year, srcMap]) => ({
+          year,
+          sources: sortMap(srcMap),
+        }))
+        .filter((block) => block.sources.length > 0),
     };
 
     setReport(sortedReport);
