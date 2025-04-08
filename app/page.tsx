@@ -20,6 +20,7 @@ export default function Home() {
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      console.log("📦 First row of uploaded growth file:", jsonData[0]);
 
       const cleaned = jsonData
         .map((row: any) => {
