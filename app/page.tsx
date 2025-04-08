@@ -114,19 +114,17 @@ window.leadsRaw = leads;
   const generateReport = () => {
   console.log('✅ Generate Report clicked');
 
- // @ts-ignore
-if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
+  // @ts-ignore - allow accessing custom global variable
+  if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
 
+  // @ts-ignore
+  const leadsRaw: any[] = window['leadsRaw'];
 
   const yearly = new Map<string, { leads: number; conversions: number }>();
   const brokerages = new Map<string, { leads: number; conversions: number }>();
   const sources = new Map<string, { leads: number; conversions: number }>();
 
-// @ts-ignore
-const leadsRaw: any[] = window['leadsRaw'];
-
-
-  // 🟢 Count TOTAL leads per source
+  // ✅ Count TOTAL leads per source from raw leads file
   leadsRaw.forEach((row: any) => {
     const blob = row['lead_text'] || row['lead_agent_text'] || '';
     const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
@@ -139,7 +137,7 @@ const leadsRaw: any[] = window['leadsRaw'];
     sources.get(key)!.leads += 1;
   });
 
-  // 🟢 Count CONVERSIONS per source + brokerage + year
+  // ✅ Count conversions per year, brokerage, and source
   parsedData.forEach((row) => {
     const year = row.date?.split('-')[0];
     const brokerage = row.company || 'Unknown';
@@ -183,6 +181,7 @@ const leadsRaw: any[] = window['leadsRaw'];
     })),
   });
 };
+
 
 
   return (
