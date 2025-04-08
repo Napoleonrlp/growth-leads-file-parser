@@ -112,53 +112,74 @@ window.leadsRaw = leads;
 
 
   const generateReport = () => {
-    console.log('✅ Generate Report clicked');
+  console.log('✅ Generate Report clicked');
 
-    if (parsedData.length === 0) return;
+  if (parsedData.length === 0 || typeof window.leadsRaw === 'undefined') return;
 
-    const yearly = new Map<string, { leads: number; conversions: number }>();
-    const brokerages = new Map<string, { leads: number; conversions: number }>();
-    const sources = new Map<string, { leads: number; conversions: number }>();
+  const yearly = new Map<string, { leads: number; conversions: number }>();
+  const brokerages = new Map<string, { leads: number; conversions: number }>();
+  const sources = new Map<string, { leads: number; conversions: number }>();
 
-    parsedData.forEach((row) => {
-      const year = row.date?.split('-')[0];
-      const brokerage = row.company || 'Unknown';
-      const source = row.source || 'Unknown';
+  const leadsRaw: any[] = window.leadsRaw;
 
-      if (!year) return;
+  // 🟢 Count TOTAL leads per source
+  leadsRaw.forEach((row: any) => {
+    const blob = row['lead_text'] || row['lead_agent_text'] || '';
+    const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+    const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
+    const key = source.toUpperCase().trim();
 
-      if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
-      yearly.get(year)!.leads += 1;
-      if (row.isConversion) yearly.get(year)!.conversions += 1;
+    if (!sources.has(key)) {
+      sources.set(key, { leads: 0, conversions: 0 });
+    }
+    sources.get(key)!.leads += 1;
+  });
 
-      if (!brokerages.has(brokerage))
-        brokerages.set(brokerage, { leads: 0, conversions: 0 });
-      brokerages.get(brokerage)!.leads += 1;
-      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+  // 🟢 Count CONVERSIONS per source + brokerage + year
+  parsedData.forEach((row) => {
+    const year = row.date?.split('-')[0];
+    const brokerage = row.company || 'Unknown';
+    const source = (row.source || 'N/A').toUpperCase().trim();
 
-      if (!sources.has(source)) sources.set(source, { leads: 0, conversions: 0 });
-      sources.get(source)!.leads += 1;
-      if (row.isConversion) sources.get(source)!.conversions += 1;
-    });
+    if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
+    yearly.get(year)!.leads += 1;
+    if (row.isConversion) yearly.get(year)!.conversions += 1;
 
-    setReport({
-      yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
-        year,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
-      brokerages: Array.from(brokerages.entries()).map(([name, stats]) => ({
-        name,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
-      sources: Array.from(sources.entries()).map(([tag, stats]) => ({
-        tag,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
-    });
-  };
+    if (!brokerages.has(brokerage))
+      brokerages.set(brokerage, { leads: 0, conversions: 0 });
+    brokerages.get(brokerage)!.leads += 1;
+    if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+
+    if (!sources.has(source)) {
+      sources.set(source, { leads: 0, conversions: 0 });
+    }
+    if (row.isConversion) {
+      sources.get(source)!.conversions += 1;
+    }
+  });
+
+  setReport({
+    yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
+      year,
+      ...stats,
+      rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
+    })),
+    brokerages: Array.from(brokerages.entries()).map(([name, stats]) => ({
+      name,
+      ...stats,
+      rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
+    })),
+    sources: Array.from(sources.entries()).map(([tag, stats]) => ({
+      tag,
+      ...stats,
+      rate:
+        stats.leads > 0
+          ? ((stats.conversions / stats.leads) * 100).toFixed(2) + '%'
+          : '0.00%',
+    })),
+  });
+};
+
 
   return (
     <div style={{ padding: '2rem' }}>
