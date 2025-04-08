@@ -236,8 +236,9 @@ export default function Home() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
         <input type="file" multiple onChange={handleFileUpload} className="file-input" />
         <input type="file" onChange={handleLeadsUpload} className="file-input" />
-       <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
-        <button onClick={() => downloadCSV()} className="btn btn-outline">⬇️ Export CSV</button>
+     <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
+<button onClick={downloadCSV} className="btn btn-outline">⬇️ Export CSV</button>
+
       </div>
 
       {report && (
