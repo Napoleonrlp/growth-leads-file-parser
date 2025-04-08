@@ -69,6 +69,9 @@ export default function Home() {
   const workbook = XLSX.read(data);
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
   const leads = XLSX.utils.sheet_to_json(worksheet);
+    // @ts-ignore
+window.leadsRaw = leads;
+
 
   console.log("🔍 First row of leads file:", leads[0]);
 
