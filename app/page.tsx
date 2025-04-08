@@ -106,75 +106,121 @@ export default function Home() {
   };
 
   const generateReport = () => {
-    console.log('✅ Generate Report clicked');
+  console.log('✅ Generate Report clicked');
 
-    // @ts-ignore
-    if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
+  // @ts-ignore
+  if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
 
-    // @ts-ignore
-    const leadsRaw: any[] = window['leadsRaw'];
+  // @ts-ignore
+  const leadsRaw: any[] = window['leadsRaw'];
 
-    const yearly = new Map<string, { leads: number; conversions: number }>();
-    const brokerages = new Map<string, { leads: number; conversions: number }>();
-    const sources = new Map<string, { leads: number; conversions: number }>();
+  const yearly = new Map<string, { leads: number; conversions: number }>();
+  const brokerages = new Map<string, { leads: number; conversions: number }>();
+  const sources = new Map<string, { leads: number; conversions: number }>();
+  const sourceByYear = new Map<
+    string,
+    Map<string, { leads: number; conversions: number }>
+  >(); // year → source → { leads, conversions }
 
-    // Count TOTAL leads per source
-    leadsRaw.forEach((row: any) => {
-      const blob = row['lead_text'] || row['lead_agent_text'] || '';
-      const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-      const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
-      const key = source.toUpperCase().trim();
+  // Step 1: Count TOTAL leads per source + source/year from raw leads
+  leadsRaw.forEach((row: any) => {
+    const blob = row['lead_text'] || row['lead_agent_text'] || '';
+    const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+    const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
+    const key = source.toUpperCase().trim();
 
-      if (!sources.has(key)) {
-        sources.set(key, { leads: 0, conversions: 0 });
-      }
-      sources.get(key)!.leads += 1;
-    });
+    const date = new Date(row['lead_created_at'] || row['created_at']);
+    const year = String(date.getFullYear());
 
-    // Count conversions per year, brokerage, and source
-    parsedData.forEach((row) => {
-      const year = row.date?.split('-')[0];
-      const brokerage = row.company || 'Unknown';
-      const source = (row.source || 'N/A').toUpperCase().trim();
+    // TOTAL sources
+    if (!sources.has(key)) {
+      sources.set(key, { leads: 0, conversions: 0 });
+    }
+    sources.get(key)!.leads += 1;
 
-      if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
-      yearly.get(year)!.leads += 1;
-      if (row.isConversion) yearly.get(year)!.conversions += 1;
+    // Per-year source breakdown
+    if (!sourceByYear.has(year)) {
+      sourceByYear.set(year, new Map());
+    }
 
-      if (!brokerages.has(brokerage))
-        brokerages.set(brokerage, { leads: 0, conversions: 0 });
-      brokerages.get(brokerage)!.leads += 1;
-      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+    const yearMap = sourceByYear.get(year)!;
+    if (!yearMap.has(key)) {
+      yearMap.set(key, { leads: 0, conversions: 0 });
+    }
+    yearMap.get(key)!.leads += 1;
+  });
 
-      if (!sources.has(source)) {
-        sources.set(source, { leads: 0, conversions: 0 });
-      }
-      if (row.isConversion) {
-        sources.get(source)!.conversions += 1;
-      }
-    });
+  // Step 2: Count conversions per year, brokerage, source, and source/year
+  parsedData.forEach((row) => {
+    const year = row.date?.split('-')[0];
+    const brokerage = row.company || 'Unknown';
+    const source = (row.source || 'N/A').toUpperCase().trim();
 
-    setReport({
-      yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
-        year,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
-      brokerages: Array.from(brokerages.entries()).map(([name, stats]) => ({
-        name,
-        ...stats,
-        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-      })),
-      sources: Array.from(sources.entries()).map(([tag, stats]) => ({
-        tag,
+    if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
+    yearly.get(year)!.leads += 1;
+    if (row.isConversion) yearly.get(year)!.conversions += 1;
+
+    if (!brokerages.has(brokerage))
+      brokerages.set(brokerage, { leads: 0, conversions: 0 });
+    brokerages.get(brokerage)!.leads += 1;
+    if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+
+    if (!sources.has(source)) {
+      sources.set(source, { leads: 0, conversions: 0 });
+    }
+    if (row.isConversion) {
+      sources.get(source)!.conversions += 1;
+    }
+
+    // Source-by-year
+    if (!sourceByYear.has(year)) {
+      sourceByYear.set(year, new Map());
+    }
+
+    const yearMap = sourceByYear.get(year)!;
+    if (!yearMap.has(source)) {
+      yearMap.set(source, { leads: 0, conversions: 0 });
+    }
+
+    if (row.isConversion) {
+      yearMap.get(source)!.conversions += 1;
+    }
+  });
+
+  // Finalize report object
+  setReport({
+    yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
+      year,
+      ...stats,
+      rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
+    })),
+    brokerages: Array.from(brokerages.entries()).map(([name, stats]) => ({
+      name,
+      ...stats,
+      rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
+    })),
+    sources: Array.from(sources.entries()).map(([tag, stats]) => ({
+      tag,
+      ...stats,
+      rate:
+        stats.leads > 0
+          ? ((stats.conversions / stats.leads) * 100).toFixed(2) + '%'
+          : '0.00%',
+    })),
+    sourcesByYear: Array.from(sourceByYear.entries()).map(([year, sourceMap]) => ({
+      year,
+      sources: Array.from(sourceMap.entries()).map(([source, stats]) => ({
+        source,
         ...stats,
         rate:
           stats.leads > 0
             ? ((stats.conversions / stats.leads) * 100).toFixed(2) + '%'
             : '0.00%',
       })),
-    });
-  };
+    })),
+  });
+};
+
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -251,3 +297,17 @@ export default function Home() {
     </div>
   );
 }
+<h2>📆 Source Breakdown by Year</h2>
+{report.sourcesByYear.map((yearBlock: any) => (
+  <div key={yearBlock.year} style={{ marginBottom: '1rem' }}>
+    <h3>{yearBlock.year}</h3>
+    <ul>
+      {yearBlock.sources.map((src: any, idx: number) => (
+        <li key={idx}>
+          {src.source}: {src.conversions}/{src.leads} → {src.rate}
+        </li>
+      ))}
+    </ul>
+  </div>
+))}
+
