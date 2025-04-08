@@ -21,7 +21,7 @@ export default function Home() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      console.log("📦 First row of uploaded growth file:", jsonData[0]);
+      console.log('📦 First row of uploaded growth file:', jsonData[0]);
 
       const cleaned = jsonData
         .map((row: any) => {
@@ -34,9 +34,7 @@ export default function Home() {
 
           const nameParts = nameRaw.split(',').map((s: string) => s.trim());
           const nameFormatted =
-            nameParts.length === 2
-              ? `${nameParts[1]} ${nameParts[0]}`
-              : nameRaw;
+            nameParts.length === 2 ? `${nameParts[1]} ${nameParts[0]}` : nameRaw;
 
           const date = XLSX.SSF.parse_date_code(dateRaw);
           const yearMonth = `${date.y}-${String(date.m).padStart(2, '0')}`;
@@ -66,7 +64,7 @@ export default function Home() {
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const leads = XLSX.utils.sheet_to_json(worksheet);
 
-    console.log("🔍 First row of leads file:", leads[0]);
+    console.log('🔍 First row of leads file:', leads[0]);
 
     const leadMap = new Map<string, string>();
 
@@ -96,7 +94,7 @@ export default function Home() {
     setParsedData(matched);
     setConversions(matched.filter((m) => m.isConversion));
 
-    // Debug: expose to console
+    // Debug
     // @ts-ignore
     window.parsedData = matched;
     // @ts-ignore
@@ -106,142 +104,126 @@ export default function Home() {
   };
 
   const generateReport = () => {
-  console.log('✅ Generate Report clicked');
+    console.log('✅ Generate Report clicked');
 
-  // @ts-ignore
-  if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
+    // @ts-ignore
+    if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
 
-  // @ts-ignore
-  const leadsRaw: any[] = window['leadsRaw'];
+    // @ts-ignore
+    const leadsRaw: any[] = window['leadsRaw'];
 
-  const yearly = new Map<string, { leads: number; conversions: number }>();
-  const brokerages = new Map<string, { leads: number; conversions: number }>();
-  const sources = new Map<string, { leads: number; conversions: number }>();
-  const sourceByYear = new Map<
-    string,
-    Map<string, { leads: number; conversions: number }>
-  >(); // year → source → { leads, conversions }
+    const yearly = new Map<string, { leads: number; conversions: number }>();
+    const brokerages = new Map<string, { leads: number; conversions: number }>();
+    const sources = new Map<string, { leads: number; conversions: number }>();
+    const sourceByYear = new Map<
+      string,
+      Map<string, { leads: number; conversions: number }>
+    >();
 
-  // Step 1: Count TOTAL leads per source + source/year from raw leads
-  leadsRaw.forEach((row: any) => {
-    const blob = row['lead_text'] || row['lead_agent_text'] || '';
-    const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-    const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
-    const key = source.toUpperCase().trim();
+    leadsRaw.forEach((row: any) => {
+      const blob = row['lead_text'] || row['lead_agent_text'] || '';
+      const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+      const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
+      const key = source.toUpperCase().trim();
 
-    const date = new Date(row['lead_created_at'] || row['created_at']);
-    const year = String(date.getFullYear());
+      const date = new Date(row['lead_created_at'] || row['created_at']);
+      const year = String(date.getFullYear());
 
-    // TOTAL sources
-    if (!sources.has(key)) {
-      sources.set(key, { leads: 0, conversions: 0 });
-    }
-    sources.get(key)!.leads += 1;
+      if (!sources.has(key)) {
+        sources.set(key, { leads: 0, conversions: 0 });
+      }
+      sources.get(key)!.leads += 1;
 
-    // Per-year source breakdown
-    if (!sourceByYear.has(year)) {
-      sourceByYear.set(year, new Map());
-    }
+      if (!sourceByYear.has(year)) {
+        sourceByYear.set(year, new Map());
+      }
 
-    const yearMap = sourceByYear.get(year)!;
-    if (!yearMap.has(key)) {
-      yearMap.set(key, { leads: 0, conversions: 0 });
-    }
-    yearMap.get(key)!.leads += 1;
-  });
+      const yearMap = sourceByYear.get(year)!;
+      if (!yearMap.has(key)) {
+        yearMap.set(key, { leads: 0, conversions: 0 });
+      }
+      yearMap.get(key)!.leads += 1;
+    });
 
-  // Step 2: Count conversions per year, brokerage, source, and source/year
-  parsedData.forEach((row) => {
-    const year = row.date?.split('-')[0];
-    const brokerage = row.company || 'Unknown';
-    const source = (row.source || 'N/A').toUpperCase().trim();
+    parsedData.forEach((row) => {
+      const year = row.date?.split('-')[0];
+      const brokerage = row.company || 'Unknown';
+      const source = (row.source || 'N/A').toUpperCase().trim();
 
-    if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
-    yearly.get(year)!.leads += 1;
-    if (row.isConversion) yearly.get(year)!.conversions += 1;
+      if (!yearly.has(year)) yearly.set(year, { leads: 0, conversions: 0 });
+      yearly.get(year)!.leads += 1;
+      if (row.isConversion) yearly.get(year)!.conversions += 1;
 
-    if (!brokerages.has(brokerage))
-      brokerages.set(brokerage, { leads: 0, conversions: 0 });
-    brokerages.get(brokerage)!.leads += 1;
-    if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+      if (!brokerages.has(brokerage))
+        brokerages.set(brokerage, { leads: 0, conversions: 0 });
+      brokerages.get(brokerage)!.leads += 1;
+      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
 
-    if (!sources.has(source)) {
-      sources.set(source, { leads: 0, conversions: 0 });
-    }
-    if (row.isConversion) {
-      sources.get(source)!.conversions += 1;
-    }
+      if (!sources.has(source)) {
+        sources.set(source, { leads: 0, conversions: 0 });
+      }
+      if (row.isConversion) {
+        sources.get(source)!.conversions += 1;
+      }
 
-    // Source-by-year
-    if (!sourceByYear.has(year)) {
-      sourceByYear.set(year, new Map());
-    }
+      if (!sourceByYear.has(year)) {
+        sourceByYear.set(year, new Map());
+      }
 
-    const yearMap = sourceByYear.get(year)!;
-    if (!yearMap.has(source)) {
-      yearMap.set(source, { leads: 0, conversions: 0 });
-    }
+      const yearMap = sourceByYear.get(year)!;
+      if (!yearMap.has(source)) {
+        yearMap.set(source, { leads: 0, conversions: 0 });
+      }
 
-    if (row.isConversion) {
-      yearMap.get(source)!.conversions += 1;
-    }
-  });
+      if (row.isConversion) {
+        yearMap.get(source)!.conversions += 1;
+      }
+    });
 
-  // Finalize report object
-  setReport({
-    yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
-      year,
-      ...stats,
-      rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-    })),
-    brokerages: Array.from(brokerages.entries()).map(([name, stats]) => ({
-      name,
-      ...stats,
-      rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
-    })),
-    sources: Array.from(sources.entries()).map(([tag, stats]) => ({
-      tag,
-      ...stats,
-      rate:
-        stats.leads > 0
-          ? ((stats.conversions / stats.leads) * 100).toFixed(2) + '%'
-          : '0.00%',
-    })),
-    sourcesByYear: Array.from(sourceByYear.entries()).map(([year, sourceMap]) => ({
-      year,
-      sources: Array.from(sourceMap.entries()).map(([source, stats]) => ({
-        source,
+    setReport({
+      yearly: Array.from(yearly.entries()).map(([year, stats]) => ({
+        year,
+        ...stats,
+        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
+      })),
+      brokerages: Array.from(brokerages.entries()).map(([name, stats]) => ({
+        name,
+        ...stats,
+        rate: ((stats.conversions / stats.leads) * 100).toFixed(2) + '%',
+      })),
+      sources: Array.from(sources.entries()).map(([tag, stats]) => ({
+        tag,
         ...stats,
         rate:
           stats.leads > 0
             ? ((stats.conversions / stats.leads) * 100).toFixed(2) + '%'
             : '0.00%',
       })),
-    })),
-  });
-};
-
+      sourcesByYear: Array.from(sourceByYear.entries()).map(([year, sourceMap]) => ({
+        year,
+        sources: Array.from(sourceMap.entries()).map(([source, stats]) => ({
+          source,
+          ...stats,
+          rate:
+            stats.leads > 0
+              ? ((stats.conversions / stats.leads) * 100).toFixed(2) + '%'
+              : '0.00%',
+        })),
+      })),
+    });
+  };
 
   return (
     <div style={{ padding: '2rem' }}>
       <h1>📊 Growth & Leads File Parser</h1>
 
       <h2>📁 Upload Growth & Attrition File(s)</h2>
-      <input
-        type="file"
-        accept=".xlsx, .xls, .csv"
-        multiple
-        onChange={handleFileUpload}
-      />
+      <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleFileUpload} />
 
       <hr style={{ margin: '2rem 0' }} />
 
       <h2>📥 Upload Leads File</h2>
-      <input
-        type="file"
-        accept=".xlsx, .xls, .csv"
-        onChange={handleLeadsUpload}
-      />
+      <input type="file" accept=".xlsx, .xls, .csv" onChange={handleLeadsUpload} />
 
       <hr style={{ margin: '2rem 0' }} />
 
@@ -264,49 +246,50 @@ export default function Home() {
         🚀 Generate Report
       </button>
 
-     {report && (
-  <div style={{ marginTop: '2rem' }}>
-    <h2>📈 Overall Performance by Year</h2>
-    <ul>
-      {report.yearly.map((y: any) => (
-        <li key={y.year}>
-          <strong>{y.year}</strong>: {y.conversions} hires from {y.leads} leads → {y.rate}
-        </li>
-      ))}
-    </ul>
+      {report && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2>📈 Overall Performance by Year</h2>
+          <ul>
+            {report.yearly.map((y: any) => (
+              <li key={y.year}>
+                <strong>{y.year}</strong>: {y.conversions} hires from {y.leads} leads → {y.rate}
+              </li>
+            ))}
+          </ul>
 
-    <h2>🏢 Top Converting Brokerages</h2>
-    <ul>
-      {report.brokerages.map((b: any, i: number) => (
-        <li key={i}>
-          {b.name}: {b.conversions}/{b.leads} → {b.rate}
-        </li>
-      ))}
-    </ul>
+          <h2>🏢 Top Converting Brokerages</h2>
+          <ul>
+            {report.brokerages.map((b: any, i: number) => (
+              <li key={i}>
+                {b.name}: {b.conversions}/{b.leads} → {b.rate}
+              </li>
+            ))}
+          </ul>
 
-    <h2>🏷️ Top Source Tags</h2>
-    <ul>
-      {report.sources.map((s: any, i: number) => (
-        <li key={i}>
-          {s.tag}: {s.conversions}/{s.leads} → {s.rate}
-        </li>
-      ))}
-    </ul>
+          <h2>🏷️ Top Source Tags</h2>
+          <ul>
+            {report.sources.map((s: any, i: number) => (
+              <li key={i}>
+                {s.tag}: {s.conversions}/{s.leads} → {s.rate}
+              </li>
+            ))}
+          </ul>
 
-    <h2>📆 Source Breakdown by Year</h2>
-    {report.sourcesByYear.map((yearBlock: any) => (
-      <div key={yearBlock.year} style={{ marginBottom: '1rem' }}>
-        <h3>{yearBlock.year}</h3>
-        <ul>
-          {yearBlock.sources.map((src: any, idx: number) => (
-            <li key={idx}>
-              {src.source}: {src.conversions}/{src.leads} → {src.rate}
-            </li>
+          <h2>Source Breakdown by Year</h2>
+          {report.sourcesByYear.map((yearBlock: any) => (
+            <div key={yearBlock.year} style={{ marginBottom: '1rem' }}>
+              <h3>{yearBlock.year}</h3>
+              <ul>
+                {yearBlock.sources.map((src: any, idx: number) => (
+                  <li key={idx}>
+                    {src.source}: {src.conversions}/{src.leads} → {src.rate}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
-      </div>
-    ))}
-  </div>
-)}
-
-
+        </div>
+      )}
+    </div>
+  );
+}
