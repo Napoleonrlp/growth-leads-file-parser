@@ -42,7 +42,7 @@ export default function Home() {
             agent: nameFormatted,
             company,
             date: yearMonth,
-            hireYear: date.y
+            hireYear: date.y,
           };
         })
         .filter(Boolean);
@@ -111,7 +111,7 @@ export default function Home() {
         isConversion: !!match && hireYear >= (leadYear || 0),
         source: match?.source || 'N/A',
         leadYear: match?.leadYear || null,
-        gap: leadYear ? hireYear - leadYear : 'N/A'
+        gap: leadYear ? hireYear - leadYear : 'N/A',
       };
     });
 
@@ -202,4 +202,6 @@ export default function Home() {
 
     setReport(sortedReport);
   };
+
+  return <div>UI rendering here...</div>;
 }
