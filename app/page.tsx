@@ -139,7 +139,7 @@ export default function Home() {
     const sourceYearMatrix: Map<string, Map<string, number>> = window['sourceYearMatrix'];
 
     const yearly = new Map<string, { leads: number; conversions: number }>();
-    const brokerages = new Map<string, { leads: number; conversions: number }>();
+    const brokeragesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
     const sourcesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
 
     parsedData.forEach((row: any) => {
@@ -150,9 +150,11 @@ export default function Home() {
       if (!yearly.has(year)) yearly.set(year, { leads: leadCountsByYear.get(year) || 0, conversions: 0 });
       if (row.isConversion) yearly.get(year)!.conversions += 1;
 
-      if (!brokerages.has(brokerage)) brokerages.set(brokerage, { leads: 0, conversions: 0 });
-      brokerages.get(brokerage)!.leads += 1;
-      if (row.isConversion) brokerages.get(brokerage)!.conversions += 1;
+      if (!brokeragesByYear.has(year)) brokeragesByYear.set(year, new Map());
+      const yearBrokerages = brokeragesByYear.get(year)!;
+      if (!yearBrokerages.has(brokerage)) yearBrokerages.set(brokerage, { leads: 0, conversions: 0 });
+      yearBrokerages.get(brokerage)!.leads += 1;
+      if (row.isConversion) yearBrokerages.get(brokerage)!.conversions += 1;
 
       if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
       const byYear = sourcesByYear.get(year)!;
@@ -186,7 +188,10 @@ export default function Home() {
 
     const sortedReport = {
       yearly: sortMap(yearly).sort((a, b) => parseInt(b.name) - parseInt(a.name)),
-      brokerages: sortMap(brokerages),
+      brokeragesByYear: Array.from(brokeragesByYear.entries()).map(([year, map]) => ({
+        year,
+        brokerages: sortMap(map),
+      })).sort((a, b) => parseInt(b.year) - parseInt(a.year)),
       sourcesByYear: Array.from(sourcesByYear.entries())
         .map(([year, srcMap]) => ({
           year,
@@ -258,12 +263,32 @@ export default function Home() {
           </div>
 
           <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">🏢 Top Converting Brokerages</h2>
-            <ul className="list-disc list-inside space-y-1">
-              {report.brokerages.map((item: any) => (
-                <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
-              ))}
-            </ul>
+            <h2 className="text-lg font-semibold mb-2">🏢 Top Converting Brokerages (Per Year)</h2>
+            {report.brokeragesByYear.map((block: any) => (
+              <div key={block.year} className="mb-4">
+                <h3 className="text-base font-medium mb-2">{block.year}</h3>
+                <table className="w-full table-auto border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-3 py-1 text-left">Brokerage</th>
+                      <th className="px-3 py-1">Conversions</th>
+                      <th className="px-3 py-1">Leads</th>
+                      <th className="px-3 py-1">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.brokerages.map((b: any) => (
+                      <tr key={b.name} className="border-t">
+                        <td className="px-3 py-1">{b.name}</td>
+                        <td className="px-3 py-1 text-center">{b.conversions}</td>
+                        <td className="px-3 py-1 text-center">{b.leads}</td>
+                        <td className="px-3 py-1 text-center">{b.rate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
 
           <div className="bg-white rounded-xl shadow p-5">
