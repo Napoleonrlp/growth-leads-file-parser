@@ -205,72 +205,108 @@ export default function Home() {
     setReport(sortedReport);
   };
 
+  const downloadCSV = () => {
+    // @ts-ignore
+    const data = window.conversions || [];
+    if (!data.length) return alert("No conversion data to download.");
+
+    const header = [
+      'Agent Name',
+      'Brokerage',
+      'Hire Date (YYYY-MM)',
+      'Lead Source',
+      'Lead Year',
+      'Hire vs. Lead Gap (yrs)'
+    ];
+
+    const rows = data.map((row: any) => [
+      row.agent,
+      row.company,
+      row.date,
+      row.source || 'N/A',
+      row.leadYear || 'N/A',
+      row.gap || 'N/A'
+    ]);
+
+    const csvContent = [header, ...rows]
+      .map((e: (string | number)[]) => e.map((v: string | number) => `"${v}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'converted_agents.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-  <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
-    <h1 className="text-3xl font-bold mb-6">📊 Growth & Leads File Parser</h1>
+    <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
+      <h1 className="text-3xl font-bold mb-6">📊 Growth & Leads File Parser</h1>
 
-    <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
-      <input type="file" multiple onChange={handleFileUpload} className="file-input" />
-      <input type="file" onChange={handleLeadsUpload} className="file-input" />
-      <button onClick={() => generateReport()} className="btn btn-primary">Generate Report</button>
-    </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
+        <input type="file" multiple onChange={handleFileUpload} className="file-input" />
+        <input type="file" onChange={handleLeadsUpload} className="file-input" />
+        <button onClick={() => generateReport()} className="btn btn-primary">Generate Report</button>
+        <button onClick={() => downloadCSV()} className="btn btn-outline">⬇️ Export CSV</button>
+      </div>
 
-    {report && (
-      <section className="space-y-8">
-        <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-semibold mb-2">🎯 Lead-Year Conversions</h2>
-          <ul className="list-disc list-inside space-y-1">
-            {report.yearly.map((item: any) => (
-              <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
-            ))}
-          </ul>
-        </div>
+      {report && (
+        <section className="space-y-8">
+          <div className="bg-white rounded-xl shadow p-5">
+            <h2 className="text-lg font-semibold mb-2">🎯 Lead-Year Conversions</h2>
+            <ul className="list-disc list-inside space-y-1">
+              {report.yearly.map((item: any) => (
+                <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
+              ))}
+            </ul>
+          </div>
 
-        <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-semibold mb-2">📆 Source Breakdown by Lead Year (All Conversions)</h2>
-          {report.sourcesByYear.map((block: any) => (
-            <div key={block.year} className="mb-4">
-              <h3 className="text-base font-medium mb-1">{block.year}</h3>
-              <ul className="list-disc list-inside space-y-1">
-                {block.sources.map((s: any) => (
-                  <li key={s.name}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
-          {report.brokeragesByYear.map((block: any) => (
-            <details key={block.year} className="mb-4">
-              <summary className="cursor-pointer font-medium">{block.year}</summary>
-              <table className="table-auto w-full mt-2 border text-left text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-2 py-1">Brokerage</th>
-                    <th className="px-2 py-1">Conversions</th>
-                    <th className="px-2 py-1">Leads</th>
-                    <th className="px-2 py-1">Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.brokerages.map((item: any) => (
-                    <tr key={item.name} className="border-b">
-                      <td className="px-2 py-1">{item.name}</td>
-                      <td className="px-2 py-1">{item.conversions}</td>
-                      <td className="px-2 py-1">{item.leads}</td>
-                      <td className="px-2 py-1">{item.rate}</td>
-                    </tr>
+          <div className="bg-white rounded-xl shadow p-5">
+            <h2 className="text-lg font-semibold mb-2">📆 Source Breakdown by Lead Year (All Conversions)</h2>
+            {report.sourcesByYear.map((block: any) => (
+              <div key={block.year} className="mb-4">
+                <h3 className="text-base font-medium mb-1">{block.year}</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {block.sources.map((s: any) => (
+                    <li key={s.name}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
                   ))}
-                </tbody>
-              </table>
-            </details>
-          ))}
-        </div>
-      </section>
-    )}
-  </main>
-);
+                </ul>
+              </div>
+            ))}
+          </div>
 
+          <div className="bg-white rounded-xl shadow p-5">
+            <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
+            {report.brokeragesByYear.map((block: any) => (
+              <details key={block.year} className="mb-4">
+                <summary className="cursor-pointer font-medium">{block.year}</summary>
+                <table className="table-auto w-full mt-2 border text-left text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="px-2 py-1">Brokerage</th>
+                      <th className="px-2 py-1">Conversions</th>
+                      <th className="px-2 py-1">Leads</th>
+                      <th className="px-2 py-1">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.brokerages.map((item: any) => (
+                      <tr key={item.name} className="border-b">
+                        <td className="px-2 py-1">{item.name}</td>
+                        <td className="px-2 py-1">{item.conversions}</td>
+                        <td className="px-2 py-1">{item.leads}</td>
+                        <td className="px-2 py-1">{item.rate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
 }
