@@ -187,10 +187,12 @@ export default function Home() {
 
     const sortedReport = {
       yearly: sortMap(yearly).sort((a, b) => parseInt(b.name) - parseInt(a.name)),
-      brokeragesByYear: Array.from(brokeragesByYear.entries()).map(([year, map]) => ({
-        year,
-        brokerages: sortMap(map),
-      })).sort((a, b) => parseInt(b.year) - parseInt(a.year)),
+      brokeragesByYear: Array.from(brokeragesByYear.entries())
+        .map(([year, map]) => ({
+          year,
+          brokerages: sortMap(map),
+        }))
+        .sort((a, b) => parseInt(b.year) - parseInt(a.year)),
       sourcesByYear: Array.from(sourcesByYear.entries())
         .map(([year, srcMap]) => ({
           year,
