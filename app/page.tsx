@@ -73,7 +73,7 @@ export default function Home() {
       const name = row['lead_name']?.toString().trim();
       const blob = row['lead_text'] || row['lead_agent_text'] || '';
       const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-     const source = (sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A');
+      const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
 
       const dateStr = row['lead_created_at'] || row['created_at'];
       if (!dateStr) return;
@@ -168,7 +168,6 @@ export default function Home() {
       if (row.isConversion) byYear.get(source)!.conversions += 1;
     });
 
-    // Patch: Add missing sources to report by copying sourceYearMatrix untouched (preserve lead count if 0 conversions)
     sourceYearMatrix.forEach((sourceMap, year) => {
       if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
       const currentYearMap = sourcesByYear.get(year)!;
@@ -192,7 +191,7 @@ export default function Home() {
         .sort((a, b) => b.conversions - a.conversions);
 
     const sortedReport = {
-      yearly: sortMap(yearly),
+      yearly: sortMap(yearly).sort((a, b) => parseInt(b.name) - parseInt(a.name)),
       brokerages: sortMap(brokerages),
       sources: sortMap(sources),
       sourcesByYear: Array.from(sourcesByYear.entries())
@@ -200,6 +199,7 @@ export default function Home() {
           year,
           sources: sortMap(srcMap),
         }))
+        .sort((a, b) => parseInt(b.year) - parseInt(a.year))
         .filter((block) => block.sources.length > 0),
     };
 
