@@ -1,5 +1,3 @@
-// Updated to filter out : 0/0 → 0.00% and N/A: 0/0 → 0.00%
-
 "use client";
 
 import { useState } from 'react';
@@ -53,6 +51,7 @@ export default function Home() {
     }
 
     setParsedData(allCleanedData);
+    // @ts-ignore
     window.parsedData = allCleanedData;
   };
 
@@ -118,17 +117,25 @@ export default function Home() {
 
     setParsedData(matched);
     setConversions(matched.filter((m) => m.isConversion));
+    // @ts-ignore
     window.parsedData = matched;
+    // @ts-ignore
     window.conversions = matched.filter((m) => m.isConversion);
+    // @ts-ignore
     window.leadsRaw = validLeads;
+    // @ts-ignore
     window.leadCountsByYear = leadCountsByYear;
+    // @ts-ignore
     window.sourceYearMatrix = sourceYearMatrix;
   };
 
   const generateReport = () => {
+    // @ts-ignore
     if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
 
+    // @ts-ignore
     const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
+    // @ts-ignore
     const sourceYearMatrix: Map<string, Map<string, number>> = window['sourceYearMatrix'];
 
     const yearly = new Map<string, { leads: number; conversions: number }>();
@@ -176,7 +183,6 @@ export default function Home() {
           ...data,
           rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
         }))
-        .filter(item => !(item.name === 'N/A' && item.leads === 0 && item.conversions === 0))
         .sort((a, b) => b.conversions - a.conversions || b.leads - a.leads);
 
     const sortedReport = {
@@ -193,13 +199,13 @@ export default function Home() {
           sources: sortMap(srcMap),
         }))
         .sort((a, b) => parseInt(b.year) - parseInt(a.year))
-        .filter((block) => block.sources.some(s => s.leads > 0)),
+        .filter((block) => block.sources.length > 0),
     };
 
     setReport(sortedReport);
   };
 
- const downloadCSV = () => {
+  const downloadCSV = () => {
     // @ts-ignore
     const data = window.conversions || [];
     if (!data.length) return alert("No conversion data to download.");
