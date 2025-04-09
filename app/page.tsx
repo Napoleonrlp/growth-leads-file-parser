@@ -202,5 +202,3 @@ export default function Home() {
 
     setReport(sortedReport);
   };
-
-...
