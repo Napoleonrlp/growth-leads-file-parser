@@ -168,6 +168,19 @@ export default function Home() {
       if (row.isConversion) byYear.get(source)!.conversions += 1;
     });
 
+    // Patch: Add missing sources to report by copying sourceYearMatrix untouched (preserve lead count if 0 conversions)
+    sourceYearMatrix.forEach((sourceMap, year) => {
+      if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
+      const currentYearMap = sourcesByYear.get(year)!;
+
+      sourceMap.forEach((leadCount, source) => {
+        const src = source.toUpperCase().trim();
+        if (!currentYearMap.has(src)) {
+          currentYearMap.set(src, { leads: leadCount, conversions: 0 });
+        }
+      });
+    });
+
     const sortMap = (map: Map<string, any>) =>
       Array.from(map.entries())
         .map(([name, data]) => ({
@@ -236,9 +249,8 @@ export default function Home() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
         <input type="file" multiple onChange={handleFileUpload} className="file-input" />
         <input type="file" onChange={handleLeadsUpload} className="file-input" />
-     <button type="button" onClick={generateReport} className="btn btn-primary">Generate Report</button>
-<button type="button" onClick={downloadCSV} className="btn btn-outline">⬇️ Export CSV</button>
-
+        <button onClick={() => generateReport()} className="btn btn-primary">Generate Report</button>
+        <button onClick={() => downloadCSV()} className="btn btn-outline">⬇️ Export CSV</button>
       </div>
 
       {report && (
