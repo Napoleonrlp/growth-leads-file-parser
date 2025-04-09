@@ -73,7 +73,7 @@ export default function Home() {
       const name = row['lead_name']?.toString().trim();
       const blob = row['lead_text'] || row['lead_agent_text'] || '';
       const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-      const source = (sourceMatch ? sourceMatch[1].trim() : 'Unknown') || 'N/A';
+      const source = (sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A');
 
       const dateStr = row['lead_created_at'] || row['created_at'];
       if (!dateStr) return;
@@ -133,8 +133,6 @@ export default function Home() {
     // @ts-ignore
     if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
 
-    // @ts-ignore
-    const leadsRaw: any[] = window['leadsRaw'];
     // @ts-ignore
     const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
     // @ts-ignore
