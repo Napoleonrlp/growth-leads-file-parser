@@ -51,8 +51,7 @@ export default function Home() {
     }
 
     setParsedData(allCleanedData);
-    // @ts-ignore
-    window.parsedData = allCleanedData;
+    (window as any).parsedData = allCleanedData;
   };
 
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,6 +67,7 @@ export default function Home() {
     const validLeads: any[] = [];
     const leadCountsByYear = new Map<string, number>();
     const sourceYearMatrix = new Map<string, Map<string, number>>();
+    const brokerageLeadsByYear = new Map<string, Map<string, number>>();
 
     leads.forEach((row: any) => {
       const name = row['lead_name']?.toString().trim();
@@ -81,6 +81,12 @@ export default function Home() {
       if (isNaN(date.getTime())) return;
 
       const leadYear = String(date.getFullYear());
+
+      const brokerageLabel = row['accepted_agent_external_label']?.trim() || 'N/A';
+      if (!brokerageLeadsByYear.has(leadYear)) brokerageLeadsByYear.set(leadYear, new Map());
+      const brokerageMap = brokerageLeadsByYear.get(leadYear)!;
+      if (!brokerageMap.has(brokerageLabel)) brokerageMap.set(brokerageLabel, 0);
+      brokerageMap.set(brokerageLabel, brokerageMap.get(brokerageLabel)! + 1);
 
       if (!leadCountsByYear.has(leadYear)) leadCountsByYear.set(leadYear, 0);
       leadCountsByYear.set(leadYear, leadCountsByYear.get(leadYear)! + 1);
@@ -117,26 +123,20 @@ export default function Home() {
 
     setParsedData(matched);
     setConversions(matched.filter((m) => m.isConversion));
-    // @ts-ignore
-    window.parsedData = matched;
-    // @ts-ignore
-    window.conversions = matched.filter((m) => m.isConversion);
-    // @ts-ignore
-    window.leadsRaw = validLeads;
-    // @ts-ignore
-    window.leadCountsByYear = leadCountsByYear;
-    // @ts-ignore
-    window.sourceYearMatrix = sourceYearMatrix;
+    (window as any).parsedData = matched;
+    (window as any).conversions = matched.filter((m) => m.isConversion);
+    (window as any).leadsRaw = validLeads;
+    (window as any).leadCountsByYear = leadCountsByYear;
+    (window as any).sourceYearMatrix = sourceYearMatrix;
+    (window as any).brokerageLeadsByYear = brokerageLeadsByYear;
   };
 
   const generateReport = () => {
-    // @ts-ignore
-    if (parsedData.length === 0 || typeof window['leadsRaw'] === 'undefined') return;
+    if (parsedData.length === 0 || typeof (window as any).leadsRaw === 'undefined') return;
 
-    // @ts-ignore
-    const leadCountsByYear: Map<string, number> = window['leadCountsByYear'];
-    // @ts-ignore
-    const sourceYearMatrix: Map<string, Map<string, number>> = window['sourceYearMatrix'];
+    const leadCountsByYear = (window as any).leadCountsByYear as Map<string, number>;
+    const sourceYearMatrix = (window as any).sourceYearMatrix as Map<string, Map<string, number>>;
+    const brokerageLeadsByYear = (window as any).brokerageLeadsByYear as Map<string, Map<string, number>>;
 
     const yearly = new Map<string, { leads: number; conversions: number }>();
     const brokeragesByYear = new Map<string, Map<string, { leads: number; conversions: number }>>();
@@ -152,8 +152,10 @@ export default function Home() {
 
       if (!brokeragesByYear.has(year)) brokeragesByYear.set(year, new Map());
       const yearBrokerages = brokeragesByYear.get(year)!;
-      if (!yearBrokerages.has(brokerage)) yearBrokerages.set(brokerage, { leads: 0, conversions: 0 });
-      yearBrokerages.get(brokerage)!.leads += 1;
+      if (!yearBrokerages.has(brokerage)) {
+        const leadCount = brokerageLeadsByYear.get(year)?.get(brokerage) || 0;
+        yearBrokerages.set(brokerage, { leads: leadCount, conversions: 0 });
+      }
       if (row.isConversion) yearBrokerages.get(brokerage)!.conversions += 1;
 
       if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
@@ -167,7 +169,6 @@ export default function Home() {
     sourceYearMatrix.forEach((sourceMap, year) => {
       if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
       const currentYearMap = sourcesByYear.get(year)!;
-
       sourceMap.forEach((leadCount, source) => {
         const src = source.toUpperCase().trim();
         if (!currentYearMap.has(src)) {
@@ -183,6 +184,7 @@ export default function Home() {
           ...data,
           rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + '%' : '0.00%',
         }))
+        .filter(item => !(item.name === 'N/A' && item.leads === 0 && item.conversions === 0))
         .sort((a, b) => b.conversions - a.conversions || b.leads - a.leads);
 
     const sortedReport = {
@@ -199,46 +201,10 @@ export default function Home() {
           sources: sortMap(srcMap),
         }))
         .sort((a, b) => parseInt(b.year) - parseInt(a.year))
-        .filter((block) => block.sources.length > 0),
+        .filter((block) => block.sources.some(s => s.leads > 0)),
     };
 
     setReport(sortedReport);
-  };
-
-  const downloadCSV = () => {
-    // @ts-ignore
-    const data = window.conversions || [];
-    if (!data.length) return alert("No conversion data to download.");
-
-    const header = [
-      'Agent Name',
-      'Brokerage',
-      'Hire Date (YYYY-MM)',
-      'Lead Source',
-      'Lead Year',
-      'Hire vs. Lead Gap (yrs)'
-    ];
-
-    const rows = data.map((row: any) => [
-      row.agent,
-      row.company,
-      row.date,
-      row.source || 'N/A',
-      row.leadYear || 'N/A',
-      row.gap || 'N/A'
-    ]);
-
-    const csvContent = [header, ...rows]
-      .map((e: (string | number)[]) => e.map((v: string | number) => `"${v}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'converted_agents.csv';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -248,8 +214,7 @@ export default function Home() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
         <input type="file" multiple onChange={handleFileUpload} className="file-input" />
         <input type="file" onChange={handleLeadsUpload} className="file-input" />
-        <button onClick={() => generateReport()} className="btn btn-primary">Generate Report</button>
-        <button onClick={() => downloadCSV()} className="btn btn-outline">⬇️ Export CSV</button>
+        <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
       </div>
 
       {report && (
