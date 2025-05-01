@@ -207,6 +207,41 @@ export default function Home() {
     setReport(sortedReport);
   };
 
+  const downloadCSV = () => {
+    const data = (window as any).conversions || [];
+    if (!data.length) return alert("No conversion data to download.");
+
+    const header = [
+      'Agent Name',
+      'Brokerage',
+      'Hire Date (YYYY-MM)',
+      'Lead Source',
+      'Lead Year',
+      'Hire vs. Lead Gap (yrs)'
+    ];
+
+    const rows = data.map((row: any) => [
+      row.agent,
+      row.company,
+      row.date,
+      row.source || 'N/A',
+      row.leadYear || 'N/A',
+      row.gap || 'N/A'
+    ]);
+
+    const csvContent = [header, ...rows]
+      .map((e: (string | number)[]) => e.map((v: string | number) => `"${v}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'converted_agents.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
       <h1 className="text-3xl font-bold mb-6">📊 Growth & Leads File Parser</h1>
@@ -215,6 +250,7 @@ export default function Home() {
         <input type="file" multiple onChange={handleFileUpload} className="file-input" />
         <input type="file" onChange={handleLeadsUpload} className="file-input" />
         <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
+        <button onClick={downloadCSV} className="btn btn-outline">⬇️ Export CSV</button>
       </div>
 
       {report && (
