@@ -220,24 +220,28 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
-  const downloadBrokerageReport = () => {
-    const data = (window as any).brokeragesByYear || [];
-    if (!data.length) return alert("No brokerage report to download.");
+ const downloadBrokerageReport = () => {
+  const data = (window as any).brokeragesByYear || [];
+  if (!data.length) return alert("No brokerage report to download.");
 
-    const header = ['Year', 'Brokerage', 'Conversions', 'Leads', 'Conversion Rate'];
-    const rows = data.flatMap((yearBlock: any) =>
-      yearBlock.brokerages.map((b: any) => [yearBlock.year, b.name, b.conversions, b.leads, b.rate])
-    );
+  const header = ['Year', 'Brokerage', 'Conversions', 'Leads', 'Conversion Rate'];
+  const rows = data.flatMap((yearBlock: any) =>
+    yearBlock.brokerages.map((b: any) => [yearBlock.year, b.name, b.conversions, b.leads, b.rate])
+  );
 
-    const csvContent = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'brokerages_by_year.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const csvContent = [header, ...rows]
+    .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'brokerages_by_year.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 
   return (
     <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
