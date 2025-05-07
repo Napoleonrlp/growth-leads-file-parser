@@ -210,15 +210,19 @@ export default function Home() {
       row.agent, row.company, row.date, row.source || 'N/A', row.leadYear || 'N/A', row.gap || 'N/A'
     ]);
 
-    const csvContent = [header, ...rows].map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
-    const blob = new Blob([csvContent.join('
-')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'converted_agents.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+const csvContent = [header, ...rows]
+  .map((r: (string | number)[]) =>
+    r.map((v: string | number) => `"${v}"`).join(',')
+  )
+  .join('\n');
+
+const blob = new Blob([csvContent], { type: 'text/csv' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'brokerage_report.csv';
+a.click();
+URL.revokeObjectURL(url);
   };
 
 const downloadBrokerageReport = () => {
