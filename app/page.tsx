@@ -288,39 +288,42 @@ const downloadBrokerageReport = () => {
           </div>
 
           {/* Brokerages */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
-             <button onClick={downloadBrokerageReport} className="btn btn-outline">
-  ⬇️ Export Brokerages CSV
-</button>
+         {/* Brokerages */}
+<div className="bg-white rounded-xl shadow p-5">
+  <div className="flex justify-between items-center mb-2">
+    <h2 className="text-lg font-semibold">🏢 Brokerages by Year</h2>
+    <button onClick={downloadBrokerageReport} className="btn btn-outline">
+      ⬇️ Export Brokerages CSV
+    </button>
+  </div>
 
-            {report.brokeragesByYear.map((block: any) => (
-              <details key={block.year} className="mb-4">
-                <summary className="cursor-pointer font-medium">{block.year}</summary>
-                <table className="table-auto w-full mt-2 border text-left text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="px-2 py-1">Brokerage</th>
-                      <th className="px-2 py-1">Conversions</th>
-                      <th className="px-2 py-1">Leads</th>
-                      <th className="px-2 py-1">Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {block.brokerages.map((item: any) => (
-                      <tr key={item.name} className="border-b">
-                        <td className="px-2 py-1">{item.name}</td>
-                        <td className="px-2 py-1">{item.conversions}</td>
-                        <td className="px-2 py-1">{item.leads}</td>
-                        <td className="px-2 py-1">{item.rate}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </details>
-            ))}
-          </div>
+  {report.brokeragesByYear.map((block: any) => (
+    <details key={block.year} className="mb-4">
+      <summary className="cursor-pointer font-medium">{block.year}</summary>
+      <table className="table-auto w-full mt-2 border text-left text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="px-2 py-1">Brokerage</th>
+            <th className="px-2 py-1">Conversions</th>
+            <th className="px-2 py-1">Leads</th>
+            <th className="px-2 py-1">Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {block.brokerages.map((item: any) => (
+            <tr key={item.name} className="border-b">
+              <td className="px-2 py-1">{item.name}</td>
+              <td className="px-2 py-1">{item.conversions}</td>
+              <td className="px-2 py-1">{item.leads}</td>
+              <td className="px-2 py-1">{item.rate}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  ))}
+</div>
+
         </section>
       )}
     </main>
