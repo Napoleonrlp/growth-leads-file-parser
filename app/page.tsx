@@ -291,8 +291,10 @@ const downloadBrokerageReport = () => {
           <div className="bg-white rounded-xl shadow p-5">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
-             <button onClick={downloadBrokerageReport} className="btn btn-outline">⬇️ Export Brokerages CSV</button>
-            </div>
+             <button onClick={downloadBrokerageReport} className="btn btn-outline">
+  ⬇️ Export Brokerages CSV
+</button>
+
             {report.brokeragesByYear.map((block: any) => (
               <details key={block.year} className="mb-4">
                 <summary className="cursor-pointer font-medium">{block.year}</summary>
