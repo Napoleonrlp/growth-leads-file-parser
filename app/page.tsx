@@ -211,7 +211,8 @@ export default function Home() {
     ]);
 
     const csvContent = [header, ...rows].map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent.join('
+')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -221,32 +222,34 @@ export default function Home() {
   };
 
 const downloadBrokerageReport = () => {
-  const data = (window as any).brokeragesByYear || [];
-  if (!data.length) return alert("No brokerage report to download.");
+  if (!report || !report.brokeragesByYear?.length) {
+    alert("No brokerage data to export.");
+    return;
+  }
 
-  const header = ['Year', 'Brokerage', 'Conversions', 'Leads', 'Conversion Rate'];
-  const rows = data.flatMap((yearBlock: any) =>
-    yearBlock.brokerages.map((b: any) => [
-      yearBlock.year,
-      b.name,
-      b.conversions,
-      b.leads,
-      b.rate
-    ])
-  );
+  const header = ["Year", "Brokerage", "Conversions", "Leads", "Rate"];
+  const rows: (string | number)[][] = [];
+
+  report.brokeragesByYear.forEach((block: any) => {
+    const year = block.year;
+    block.brokerages.forEach((item: any) => {
+      rows.push([year, item.name, item.conversions, item.leads, item.rate]);
+    });
+  });
 
   const csvContent = [header, ...rows]
-    .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
-    .join('\n');
+    .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(","))
+    .join("\n");
 
-  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const blob = new Blob([csvContent], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = 'brokerages_by_year.csv';
+  a.download = "brokerage_report.csv";
   a.click();
   URL.revokeObjectURL(url);
 };
+
 
 
   return (
