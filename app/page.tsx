@@ -237,7 +237,7 @@ const downloadBrokerageReport = () => {
 
   const csvContent = [header, ...rows]
     .map((r: (string | number)[]) => 
-      r.map((v: string | number) => `"${String(v)}"`).join(',')
+      r.map((v: string | number) => `"${v}"`).join(',')
     )
     .join('\n');
 
@@ -249,7 +249,6 @@ const downloadBrokerageReport = () => {
   a.click();
   URL.revokeObjectURL(url);
 };
-
 
   return (
     <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
