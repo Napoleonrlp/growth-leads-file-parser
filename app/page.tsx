@@ -220,17 +220,25 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
- const downloadBrokerageReport = () => {
+const downloadBrokerageReport = () => {
   const data = (window as any).brokeragesByYear || [];
   if (!data.length) return alert("No brokerage report to download.");
 
   const header = ['Year', 'Brokerage', 'Conversions', 'Leads', 'Conversion Rate'];
   const rows = data.flatMap((yearBlock: any) =>
-    yearBlock.brokerages.map((b: any) => [yearBlock.year, b.name, b.conversions, b.leads, b.rate])
+    yearBlock.brokerages.map((b: any) => [
+      yearBlock.year,
+      b.name,
+      b.conversions,
+      b.leads,
+      b.rate
+    ])
   );
 
   const csvContent = [header, ...rows]
-    .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
+    .map((r: (string | number)[]) => 
+      r.map((v: string | number) => `"${String(v)}"`).join(',')
+    )
     .join('\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -285,7 +293,7 @@ export default function Home() {
           <div className="bg-white rounded-xl shadow p-5">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
-              <button onClick={downloadBrokerageReport} className="btn btn-sm btn-outline">⬇️ Export Brokerages CSV</button>
+             <button onClick={downloadBrokerageReport} className="btn btn-outline">⬇️ Export Brokerages CSV</button>
             </div>
             {report.brokeragesByYear.map((block: any) => (
               <details key={block.year} className="mb-4">
