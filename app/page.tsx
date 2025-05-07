@@ -210,7 +210,7 @@ export default function Home() {
       row.agent, row.company, row.date, row.source || 'N/A', row.leadYear || 'N/A', row.gap || 'N/A'
     ]);
 
-    const csvContent = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const csvContent = [header, ...rows].map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -236,9 +236,7 @@ const downloadBrokerageReport = () => {
   );
 
   const csvContent = [header, ...rows]
-    .map((r: (string | number)[]) => 
-      r.map((v: string | number) => `"${v}"`).join(',')
-    )
+    .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))
     .join('\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -249,6 +247,7 @@ const downloadBrokerageReport = () => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
 
   return (
     <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
