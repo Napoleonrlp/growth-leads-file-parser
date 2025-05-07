@@ -236,12 +236,15 @@ const downloadBrokerageReport = () => {
   const header = ["Year", "Brokerage", "Conversions", "Leads", "Rate"];
   const rows: (string | number)[][] = [];
 
-  report.brokeragesByYear.forEach((block: any) => {
+  report.brokeragesByYear
+  .filter((block: any) => block.year && block.year !== 'null' && !isNaN(Number(block.year)))
+  .forEach((block: any) => {
     const year = block.year;
     block.brokerages.forEach((item: any) => {
       rows.push([year, item.name, item.conversions, item.leads, item.rate]);
     });
   });
+
 
   const csvContent = [header, ...rows]
     .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(","))
