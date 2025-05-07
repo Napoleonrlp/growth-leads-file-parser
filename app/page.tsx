@@ -56,81 +56,85 @@ export default function Home() {
   };
 
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const fileList = e.target.files;
+  if (!fileList) return;
 
+  const files = Array.from(fileList);
+  const allLeads: any[] = [];
+
+  for (let file of files) {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data);
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const leads = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    allLeads.push(...jsonData);
+  }
 
-    const leadMap = new Map<string, { source: string; leadYear: string }>();
-    const validLeads: any[] = [];
-    const leadCountsByYear = new Map<string, number>();
-    const sourceYearMatrix = new Map<string, Map<string, number>>();
-    const brokerageLeadsByYear = new Map<string, Map<string, number>>();
+  const leadMap = new Map<string, { source: string; leadYear: string }>();
+  const validLeads: any[] = [];
+  const leadCountsByYear = new Map<string, number>();
+  const sourceYearMatrix = new Map<string, Map<string, number>>();
+  const brokerageLeadsByYear = new Map<string, Map<string, number>>();
 
-    leads.forEach((row: any) => {
-      const name = row['lead_name']?.toString().trim();
-      const blob = row['lead_text'] || row['lead_agent_text'] || '';
-      const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-      const source = sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A';
+  allLeads.forEach((row: any) => {
+    const name = row['lead_name']?.toString().trim();
+    const blob = row['lead_text'] || row['lead_agent_text'] || '';
+    const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+    const source = sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A';
 
-      const dateStr = row['lead_created_at'] || row['created_at'];
-      if (!dateStr) return;
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return;
+    const dateStr = row['lead_created_at'] || row['created_at'];
+    if (!dateStr) return;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return;
 
-      const leadYear = String(date.getFullYear());
+    const leadYear = String(date.getFullYear());
+    const brokerageLabel = row['accepted_agent_external_label']?.trim() || 'N/A';
 
-      const brokerageLabel = row['accepted_agent_external_label']?.trim() || 'N/A';
-      if (!brokerageLeadsByYear.has(leadYear)) brokerageLeadsByYear.set(leadYear, new Map());
-      const brokerageMap = brokerageLeadsByYear.get(leadYear)!;
-      if (!brokerageMap.has(brokerageLabel)) brokerageMap.set(brokerageLabel, 0);
-      brokerageMap.set(brokerageLabel, brokerageMap.get(brokerageLabel)! + 1);
+    if (!brokerageLeadsByYear.has(leadYear)) brokerageLeadsByYear.set(leadYear, new Map());
+    const brokerageMap = brokerageLeadsByYear.get(leadYear)!;
+    brokerageMap.set(brokerageLabel, (brokerageMap.get(brokerageLabel) || 0) + 1);
 
-      if (!leadCountsByYear.has(leadYear)) leadCountsByYear.set(leadYear, 0);
-      leadCountsByYear.set(leadYear, leadCountsByYear.get(leadYear)! + 1);
+    leadCountsByYear.set(leadYear, (leadCountsByYear.get(leadYear) || 0) + 1);
 
-      if (!sourceYearMatrix.has(leadYear)) sourceYearMatrix.set(leadYear, new Map());
-      const yearMap = sourceYearMatrix.get(leadYear)!;
-      if (!yearMap.has(source)) yearMap.set(source, 0);
-      yearMap.set(source, yearMap.get(source)! + 1);
+    if (!sourceYearMatrix.has(leadYear)) sourceYearMatrix.set(leadYear, new Map());
+    const yearMap = sourceYearMatrix.get(leadYear)!;
+    yearMap.set(source, (yearMap.get(source) || 0) + 1);
 
-      if (name) {
-        const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
-        if (!leadMap.has(normalizedName)) {
-          leadMap.set(normalizedName, { source, leadYear });
-        }
+    if (name) {
+      const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
+      if (!leadMap.has(normalizedName)) {
+        leadMap.set(normalizedName, { source, leadYear });
       }
+    }
 
-      validLeads.push(row);
-    });
+    validLeads.push(row);
+  });
 
-    const matched = parsedData.map((agent) => {
-      const name = agent.agent.toLowerCase().replace(/\s+/g, ' ').trim();
-      const match = leadMap.get(name);
-      const hireYear = parseInt(agent.hireYear);
-      const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
+  const matched = parsedData.map((agent) => {
+    const name = agent.agent.toLowerCase().replace(/\s+/g, ' ').trim();
+    const match = leadMap.get(name);
+    const hireYear = parseInt(agent.hireYear);
+    const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
 
-      return {
-        ...agent,
-        isConversion: !!match && hireYear >= (leadYear || 0),
-        source: match?.source || 'N/A',
-        leadYear: match?.leadYear || null,
-        gap: leadYear ? hireYear - leadYear : 'N/A',
-      };
-    });
+    return {
+      ...agent,
+      isConversion: !!match && hireYear >= (leadYear || 0),
+      source: match?.source || 'N/A',
+      leadYear: match?.leadYear || null,
+      gap: leadYear ? hireYear - leadYear : 'N/A',
+    };
+  });
 
-    setParsedData(matched);
-    setConversions(matched.filter((m) => m.isConversion));
-    (window as any).parsedData = matched;
-    (window as any).conversions = matched.filter((m) => m.isConversion);
-    (window as any).leadsRaw = validLeads;
-    (window as any).leadCountsByYear = leadCountsByYear;
-    (window as any).sourceYearMatrix = sourceYearMatrix;
-    (window as any).brokerageLeadsByYear = brokerageLeadsByYear;
-  };
+  setParsedData(matched);
+  setConversions(matched.filter((m) => m.isConversion));
+  (window as any).parsedData = matched;
+  (window as any).conversions = matched.filter((m) => m.isConversion);
+  (window as any).leadsRaw = validLeads;
+  (window as any).leadCountsByYear = leadCountsByYear;
+  (window as any).sourceYearMatrix = sourceYearMatrix;
+  (window as any).brokerageLeadsByYear = brokerageLeadsByYear;
+};
+
 
   const generateReport = () => {
     if (parsedData.length === 0 || typeof (window as any).leadsRaw === 'undefined') return;
@@ -266,11 +270,18 @@ const downloadBrokerageReport = () => {
       <h1 className="text-3xl font-bold mb-6">📊 Growth & Leads File Parser</h1>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
-        <input type="file" multiple onChange={handleFileUpload} className="file-input" />
-        <input type="file" onChange={handleLeadsUpload} className="file-input" />
-        <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
-        <button onClick={downloadCSV} className="btn btn-outline">⬇️ Export CSV</button>
-      </div>
+  <div className="flex flex-col">
+    <label className="font-medium mb-1">📂 Upload Growth Files</label>
+    <input type="file" multiple onChange={handleFileUpload} className="file-input" />
+  </div>
+  <div className="flex flex-col">
+    <label className="font-medium mb-1">📂 Upload Leads Files</label>
+    <input type="file" multiple onChange={handleLeadsUpload} className="file-input" />
+  </div>
+  <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
+  <button onClick={downloadCSV} className="btn btn-outline">⬇️ Export CSV</button>
+</div>
+
 
       {report && (
         <section className="space-y-8">
