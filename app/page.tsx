@@ -1,3 +1,5 @@
+// page.tsx
+
 "use client";
 
 import { useState } from 'react';
@@ -32,8 +34,7 @@ export default function Home() {
           if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
 
           const nameParts = nameRaw.split(',').map((s: string) => s.trim());
-          const nameFormatted =
-            nameParts.length === 2 ? `${nameParts[1]} ${nameParts[0]}` : nameRaw;
+          const nameFormatted = nameParts.length === 2 ? `${nameParts[1]} ${nameParts[0]}` : nameRaw;
 
           const date = XLSX.SSF.parse_date_code(dateRaw);
           const yearMonth = `${date.y}-${String(date.m).padStart(2, '0')}`;
@@ -73,7 +74,7 @@ export default function Home() {
       const name = row['lead_name']?.toString().trim();
       const blob = row['lead_text'] || row['lead_agent_text'] || '';
       const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-      const source = (sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A');
+      const source = sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A';
 
       const dateStr = row['lead_created_at'] || row['created_at'];
       if (!dateStr) return;
@@ -166,17 +167,6 @@ export default function Home() {
       if (row.isConversion) byYear.get(source)!.conversions += 1;
     });
 
-    sourceYearMatrix.forEach((sourceMap, year) => {
-      if (!sourcesByYear.has(year)) sourcesByYear.set(year, new Map());
-      const currentYearMap = sourcesByYear.get(year)!;
-      sourceMap.forEach((leadCount, source) => {
-        const src = source.toUpperCase().trim();
-        if (!currentYearMap.has(src)) {
-          currentYearMap.set(src, { leads: leadCount, conversions: 0 });
-        }
-      });
-    });
-
     const sortMap = (map: Map<string, any>) =>
       Array.from(map.entries())
         .map(([name, data]) => ({
@@ -205,6 +195,7 @@ export default function Home() {
     };
 
     setReport(sortedReport);
+    (window as any).brokeragesByYear = sortedReport.brokeragesByYear;
   };
 
   const downloadCSV = () => {
@@ -212,32 +203,38 @@ export default function Home() {
     if (!data.length) return alert("No conversion data to download.");
 
     const header = [
-      'Agent Name',
-      'Brokerage',
-      'Hire Date (YYYY-MM)',
-      'Lead Source',
-      'Lead Year',
-      'Hire vs. Lead Gap (yrs)'
+      'Agent Name', 'Brokerage', 'Hire Date (YYYY-MM)', 'Lead Source', 'Lead Year', 'Hire vs. Lead Gap (yrs)'
     ];
 
     const rows = data.map((row: any) => [
-      row.agent,
-      row.company,
-      row.date,
-      row.source || 'N/A',
-      row.leadYear || 'N/A',
-      row.gap || 'N/A'
+      row.agent, row.company, row.date, row.source || 'N/A', row.leadYear || 'N/A', row.gap || 'N/A'
     ]);
 
-    const csvContent = [header, ...rows]
-      .map((e: (string | number)[]) => e.map((v: string | number) => `"${v}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'converted_agents.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadBrokerageReport = () => {
+    const data = (window as any).brokeragesByYear || [];
+    if (!data.length) return alert("No brokerage report to download.");
+
+    const header = ['Year', 'Brokerage', 'Conversions', 'Leads', 'Conversion Rate'];
+    const rows = data.flatMap((yearBlock: any) =>
+      yearBlock.brokerages.map((b: any) => [yearBlock.year, b.name, b.conversions, b.leads, b.rate])
+    );
+
+    const csvContent = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'brokerages_by_year.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -255,6 +252,7 @@ export default function Home() {
 
       {report && (
         <section className="space-y-8">
+          {/* Yearly */}
           <div className="bg-white rounded-xl shadow p-5">
             <h2 className="text-lg font-semibold mb-2">🎯 Lead-Year Conversions</h2>
             <ul className="list-disc list-inside space-y-1">
@@ -264,6 +262,7 @@ export default function Home() {
             </ul>
           </div>
 
+          {/* Sources */}
           <div className="bg-white rounded-xl shadow p-5">
             <h2 className="text-lg font-semibold mb-2">📆 Source Breakdown by Lead Year (All Conversions)</h2>
             {report.sourcesByYear.map((block: any) => (
@@ -278,8 +277,12 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Brokerages */}
           <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold mb-2">🏢 Brokerages by Year</h2>
+              <button onClick={downloadBrokerageReport} className="btn btn-sm btn-outline">⬇️ Export Brokerages CSV</button>
+            </div>
             {report.brokeragesByYear.map((block: any) => (
               <details key={block.year} className="mb-4">
                 <summary className="cursor-pointer font-medium">{block.year}</summary>
