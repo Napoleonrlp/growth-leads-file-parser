@@ -1,5 +1,3 @@
-// page.tsx
-
 "use client";
 
 import { useState } from 'react';
@@ -10,47 +8,39 @@ export default function Home() {
   const [conversions, setConversions] = useState<any[]>([]);
   const [report, setReport] = useState<any | null>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Multi-file support for both growth and leads
+  const handleGrowthUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList) return;
-
     const files = Array.from(fileList);
     const allCleanedData: any[] = [];
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
       const cleaned = jsonData
         .map((row: any) => {
           const nameRaw = row['Agent'];
           const hired = row['Hired'];
           const company = row['Company Name'];
           const dateRaw = row['Hire/Termination Date'];
-
           if (!nameRaw || !company || !dateRaw || hired !== 1) return null;
-
           const nameParts = nameRaw.split(',').map((s: string) => s.trim());
           const nameFormatted = nameParts.length === 2 ? `${nameParts[1]} ${nameParts[0]}` : nameRaw;
-
           const date = XLSX.SSF.parse_date_code(dateRaw);
           const yearMonth = `${date.y}-${String(date.m).padStart(2, '0')}`;
-
           return {
             agent: nameFormatted,
             company,
             date: yearMonth,
-            hireYear: date.y, // Storing hireYear as a number
+            hireYear: date.y,
           };
         })
         .filter(Boolean);
-
       allCleanedData.push(...cleaned);
     }
-
     setParsedData(allCleanedData);
     (window as any).parsedData = allCleanedData;
   };
@@ -58,284 +48,214 @@ export default function Home() {
   const handleLeadsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList) return;
-
     const files = Array.from(fileList);
     const allLeads: any[] = [];
-
-    for (let file of files) {
+    files.forEach(async (file) => {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      allLeads.push(...jsonData);
-    }
+      const leads = XLSX.utils.sheet_to_json(worksheet);
+      allLeads.push(...leads);
+      (window as any).leadsRaw = ((window as any).leadsRaw || []).concat(leads);
+      processLeadsAndMatch(parsedData, (window as any).leadsRaw || allLeads);
+    });
+    // Fallback if leadsRaw not set
+    if (!(window as any).leadsRaw) (window as any).leadsRaw = allLeads;
+    processLeadsAndMatch(parsedData, allLeads);
+  };
 
-    const leadMap = new Map<string, { source: string; leadYear: string, leadBrokerage: string }>();
-    const validLeads: any[] = [];
-    const leadCountsByYear = new Map<string, number>(); // Key: LeadYear
-    const sourceYearMatrix = new Map<string, Map<string, number>>(); // Key: LeadYear, then Source
-    const brokerageLeadsByYear = new Map<string, Map<string, number>>(); // Key: LeadYear, then Brokerage (from lead data)
-
-    allLeads.forEach((row: any) => {
+  function processLeadsAndMatch(parsedData: any[], leadsRaw: any[]) {
+    const leadMap = new Map<string, { source: string; leadYear: string }>();
+    leadsRaw.forEach((row: any) => {
       const name = row['lead_name']?.toString().trim();
       const blob = row['lead_text'] || row['lead_agent_text'] || '';
       const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
       const source = sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A';
-
       const dateStr = row['lead_created_at'] || row['created_at'];
       if (!dateStr) return;
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return;
-
       const leadYear = String(date.getFullYear());
-      const leadBrokerageLabel = row['accepted_agent_external_label']?.trim() || 'N/A';
-
-      if (!brokerageLeadsByYear.has(leadYear)) brokerageLeadsByYear.set(leadYear, new Map());
-      const brokerageMap = brokerageLeadsByYear.get(leadYear)!;
-      brokerageMap.set(leadBrokerageLabel, (brokerageMap.get(leadBrokerageLabel) || 0) + 1);
-
-      leadCountsByYear.set(leadYear, (leadCountsByYear.get(leadYear) || 0) + 1);
-
-      if (!sourceYearMatrix.has(leadYear)) sourceYearMatrix.set(leadYear, new Map());
-      const yearMap = sourceYearMatrix.get(leadYear)!;
-      yearMap.set(source, (yearMap.get(source) || 0) + 1);
-
       if (name) {
         const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
         if (!leadMap.has(normalizedName)) {
-          leadMap.set(normalizedName, { source, leadYear, leadBrokerage: leadBrokerageLabel });
+          leadMap.set(normalizedName, { source, leadYear });
         }
       }
-      validLeads.push(row);
     });
-
     const matched = parsedData.map((agent) => {
       const name = agent.agent.toLowerCase().replace(/\s+/g, ' ').trim();
       const match = leadMap.get(name);
-      const hireYear = parseInt(agent.hireYear); // agent.hireYear is already a number
+      const hireYear = parseInt(agent.hireYear);
       const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
-
       return {
         ...agent,
         isConversion: !!match && hireYear >= (leadYear || 0),
         source: match?.source || 'N/A',
-        leadYear: match?.leadYear || null, // Store as string or null
-        leadBrokerage: match?.leadBrokerage || 'N/A', // Store lead brokerage for potential use
-        gap: leadYear !== null ? hireYear - leadYear : 'N/A',
+        leadYear: match?.leadYear || null,
+        gap: leadYear ? hireYear - leadYear : 'N/A',
       };
     });
-
     setParsedData(matched);
     setConversions(matched.filter((m) => m.isConversion));
     (window as any).parsedData = matched;
     (window as any).conversions = matched.filter((m) => m.isConversion);
-    (window as any).leadsRaw = validLeads;
-    (window as any).leadCountsByYear = leadCountsByYear; // Keyed by LeadYear
-    (window as any).sourceYearMatrix = sourceYearMatrix; // Keyed by LeadYear
-    (window as any).brokerageLeadsByYear = brokerageLeadsByYear; // Keyed by LeadYear
-  };
+    (window as any).leadsRaw = leadsRaw;
+  }
 
-
+  // ---------------------- NEW REPORT LOGIC --------------------------
   const generateReport = () => {
     if (parsedData.length === 0 || typeof (window as any).leadsRaw === 'undefined') return;
-
-    // These are keyed by LEAD YEAR from window object
-    const sourceYearMatrixFromWindow = (window as any).sourceYearMatrix as Map<string, Map<string, number>>;
-    const brokerageLeadsByYearFromWindow = (window as any).brokerageLeadsByYear as Map<string, Map<string, number>>;
-
-    // --- Yearly Report (by Hire Year) ---
-    const yearlyNew = new Map<string, { totalHires: number; conversions: number }>();
-    const hiresByHireYear = new Map<string, number>();
-
+    const hiresByYear: { [year: string]: any[] } = {};
     parsedData.forEach((row: any) => {
-      const hireYearStr = String(row.hireYear);
-      hiresByHireYear.set(hireYearStr, (hiresByHireYear.get(hireYearStr) || 0) + 1);
+      if (!row.hireYear) return;
+      const y = String(row.hireYear);
+      if (!hiresByYear[y]) hiresByYear[y] = [];
+      hiresByYear[y].push(row);
     });
 
-    parsedData.forEach((row: any) => {
-      const hireYearStr = String(row.hireYear);
-      if (!yearlyNew.has(hireYearStr)) {
-        yearlyNew.set(hireYearStr, {
-          totalHires: hiresByHireYear.get(hireYearStr) || 0,
-          conversions: 0
+    const yearly = [];
+    const brokeragesByYear = [];
+    const sourcesByYear = [];
+    const leadsRaw: any[] = (window as any).leadsRaw || [];
+
+    Object.keys(hiresByYear)
+      .filter((y) => y && y !== 'null' && !isNaN(Number(y)))
+      .sort((a, b) => Number(b) - Number(a))
+      .forEach((year) => {
+        const hires = hiresByYear[year];
+
+        // Source breakdown for this hire year
+        const sourceMap = new Map<string, { conversions: number; leads: number }>();
+        // Brokerage breakdown for this hire year
+        const brokerageMap = new Map<string, { conversions: number; leads: number }>();
+
+        let yearTotalHires = 0;
+        let yearTotalLeads = 0;
+
+        hires.forEach((h) => {
+          yearTotalHires++;
+          // source
+          const src = (h.source || 'N/A').toUpperCase().trim();
+          if (!sourceMap.has(src)) sourceMap.set(src, { conversions: 0, leads: 0 });
+          sourceMap.get(src)!.conversions += 1;
+
+          // brokerage
+          const brokerage = h.company || 'Unknown';
+          if (!brokerageMap.has(brokerage)) brokerageMap.set(brokerage, { conversions: 0, leads: 0 });
+          brokerageMap.get(brokerage)!.conversions += 1;
         });
-      }
-      if (row.isConversion) {
-        yearlyNew.get(hireYearStr)!.conversions += 1;
-      }
-    });
 
-    // --- Sources Report (by Hire Year) ---
-    const tempSourcesData = new Map<string, Map<string, { conversions: number, accumulatedLeads: number, distinctLeadPools: Set<string> }>>();
+        // For each hire, count leads for that agent (by matching name from leadsRaw)
+        hires.forEach((h) => {
+          const hName = h.agent.toLowerCase().replace(/\s+/g, ' ').trim();
+          // find all leads with same lead_name and brokerage
+          const agentLeads = leadsRaw.filter((l) => {
+            const lName = (l['lead_name'] || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            const brokerageLabel = l['accepted_agent_external_label']?.trim() || 'N/A';
+            return lName === hName && (brokerageLabel === h.company || !h.company);
+          });
+          yearTotalLeads += agentLeads.length;
+          agentLeads.forEach((lead) => {
+            // Count towards agent's source and brokerage
+            const blob = lead['lead_text'] || lead['lead_agent_text'] || '';
+            const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+            const src = sourceMatch ? sourceMatch[1].trim().toUpperCase() : 'N/A';
+            if (sourceMap.has(src)) sourceMap.get(src)!.leads += 1;
+            const brokerage = lead['accepted_agent_external_label']?.trim() || 'N/A';
+            if (brokerageMap.has(brokerage)) brokerageMap.get(brokerage)!.leads += 1;
+          });
+        });
 
-    parsedData.forEach((row: any) => {
-      if (row.isConversion) {
-        const hireYearStr = String(row.hireYear);
-        const source = (row.source || 'N/A').toUpperCase().trim();
-        const leadYearStr = String(row.leadYear); // leadYear of this specific conversion
-        const leadPoolKey = `${leadYearStr}_${source}`;
+        yearly.push({
+          name: year,
+          conversions: yearTotalHires,
+          leads: yearTotalLeads,
+          rate: yearTotalLeads > 0 ? ((yearTotalHires / yearTotalLeads) * 100).toFixed(2) + "%" : "0.00%",
+        });
 
-        if (!tempSourcesData.has(hireYearStr)) {
-          tempSourcesData.set(hireYearStr, new Map());
-        }
-        const hireYearSourceMap = tempSourcesData.get(hireYearStr)!;
+        sourcesByYear.push({
+          year,
+          sources: Array.from(sourceMap.entries())
+            .map(([name, data]) => ({
+              name,
+              conversions: data.conversions,
+              leads: data.leads,
+              rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + "%" : "0.00%",
+            }))
+            .filter((item) => item.conversions > 0 || item.leads > 0)
+            .sort((a, b) => b.conversions - a.conversions || b.leads - a.leads),
+        });
 
-        if (!hireYearSourceMap.has(source)) {
-          hireYearSourceMap.set(source, { conversions: 0, accumulatedLeads: 0, distinctLeadPools: new Set() });
-        }
-        const sourceEntry = hireYearSourceMap.get(source)!;
-
-        sourceEntry.conversions += 1;
-        if (leadYearStr && leadYearStr !== 'null' && !sourceEntry.distinctLeadPools.has(leadPoolKey)) {
-          const leadsFromThisSpecificPool = sourceYearMatrixFromWindow.get(leadYearStr)?.get(source) || 0;
-          sourceEntry.accumulatedLeads += leadsFromThisSpecificPool;
-          sourceEntry.distinctLeadPools.add(leadPoolKey);
-        }
-      }
-    });
-    
-    const sourcesByHireYearNew = new Map<string, Map<string, { leads: number; conversions: number }>>();
-    tempSourcesData.forEach((sourceMap, hireYearStr) => {
-      const finalSourceMapForReport = new Map<string, { leads: number; conversions: number }>();
-      sourceMap.forEach((data, source) => {
-        finalSourceMapForReport.set(source, { leads: data.accumulatedLeads, conversions: data.conversions });
+        brokeragesByYear.push({
+          year,
+          brokerages: Array.from(brokerageMap.entries())
+            .map(([name, data]) => ({
+              name,
+              conversions: data.conversions,
+              leads: data.leads,
+              rate: data.leads > 0 ? ((data.conversions / data.leads) * 100).toFixed(2) + "%" : "0.00%",
+            }))
+            .filter((item) => item.conversions > 0 || item.leads > 0)
+            .sort((a, b) => b.conversions - a.conversions || b.leads - a.leads),
+        });
       });
-      sourcesByHireYearNew.set(hireYearStr, finalSourceMapForReport);
+
+    setReport({
+      yearly,
+      brokeragesByYear,
+      sourcesByYear,
     });
-
-    // --- Brokerages Report (by Hire Year) ---
-    const tempBrokeragesData = new Map<string, Map<string, { conversions: number, accumulatedLeads: number, distinctLeadBrokeragePools: Set<string> }>>();
-
-    parsedData.forEach((row: any) => {
-      if (row.isConversion) {
-        const hireYearStr = String(row.hireYear);
-        // Use company from hire record for grouping in the report
-        const brokerageOfHire = (row.company || 'Unknown').trim();
-        // Use brokerage from lead record for looking up in brokerageLeadsByYearFromWindow
-        const brokerageOfLead = (row.leadBrokerage || 'N/A').trim(); 
-        const leadYearStr = String(row.leadYear);
-        const leadBrokeragePoolKey = `${leadYearStr}_${brokerageOfLead}`; // Key for distinct lead pool
-
-        if (!tempBrokeragesData.has(hireYearStr)) {
-          tempBrokeragesData.set(hireYearStr, new Map());
-        }
-        const hireYearBrokerageMap = tempBrokeragesData.get(hireYearStr)!;
-
-        if (!hireYearBrokerageMap.has(brokerageOfHire)) {
-          hireYearBrokerageMap.set(brokerageOfHire, { conversions: 0, accumulatedLeads: 0, distinctLeadBrokeragePools: new Set() });
-        }
-        const brokerageEntry = hireYearBrokerageMap.get(brokerageOfHire)!;
-
-        brokerageEntry.conversions += 1;
-        
-        // Sum leads from brokerageLeadsByYearFromWindow using the lead's brokerage label and lead year
-        if (leadYearStr && leadYearStr !== 'null' && brokerageOfLead !== 'N/A' && !brokerageEntry.distinctLeadBrokeragePools.has(leadBrokeragePoolKey)) {
-          const leadsFromThisSpecificBrokeragePool = brokerageLeadsByYearFromWindow.get(leadYearStr)?.get(brokerageOfLead) || 0;
-          brokerageEntry.accumulatedLeads += leadsFromThisSpecificBrokeragePool;
-          brokerageEntry.distinctLeadBrokeragePools.add(leadBrokeragePoolKey);
-        }
-      }
-    });
-
-    const brokeragesByHireYearNew = new Map<string, Map<string, { leads: number; conversions: number }>>();
-    tempBrokeragesData.forEach((brokerageMap, hireYearStr) => {
-      const finalBrokerageMapForReport = new Map<string, { leads: number; conversions: number }>();
-      brokerageMap.forEach((data, brokerage) => {
-        finalBrokerageMapForReport.set(brokerage, { leads: data.accumulatedLeads, conversions: data.conversions });
-      });
-      brokeragesByHireYearNew.set(hireYearStr, finalBrokerageMapForReport);
-    });
-    
-    const sortMap = (map: Map<string, any>) =>
-      Array.from(map.entries())
-        .map(([name, data]) => ({
-          name,
-          ...data,
-          // For yearly report, 'totalHires' is passed as 'leads' to sortMap
-          rate: (data.leads > 0 || data.totalHires > 0) ? (((data.conversions / (data.leads || data.totalHires)) * 100).toFixed(2) + '%') : '0.00%',
-        }))
-        .filter(item => !(item.name === 'N/A' && (item.leads === 0 && item.totalHires === 0) && item.conversions === 0))
-        .sort((a, b) => b.conversions - a.conversions || (b.leads || b.totalHires) - (a.leads || a.totalHires));
-
-    const sortedReport = {
-      yearly: sortMap(yearlyNew) // yearlyNew has {totalHires, conversions}
-        .sort((a, b) => parseInt(b.name) - parseInt(a.name)),
-      
-      brokeragesByYear: Array.from(brokeragesByHireYearNew.entries())
-        .filter(([year]) => year && year !== 'null' && !isNaN(Number(year)))
-        .map(([year, map]) => ({
-          year, // This is hireYear
-          brokerages: sortMap(map),
-        }))
-        .sort((a, b) => parseInt(b.year) - parseInt(a.year)),
-
-      sourcesByYear: Array.from(sourcesByHireYearNew.entries())
-        .map(([year, srcMap]) => ({
-          year, // This is hireYear
-          sources: sortMap(srcMap),
-        }))
-        .sort((a, b) => parseInt(b.year) - parseInt(a.year))
-        .filter((block) => block.year && block.year !== 'null' && block.sources.some(s => s.leads > 0 || s.conversions > 0)),
-    };
-
-    setReport(sortedReport);
-    (window as any).brokeragesByYear = sortedReport.brokeragesByYear; // For download
+    (window as any).brokeragesByYear = brokeragesByYear;
   };
 
+  // Download converted agents CSV
   const downloadCSV = () => {
     const data = (window as any).conversions || [];
     if (!data.length) return alert("No conversion data to download.");
-
     const header = [
-      'Agent Name', 'Brokerage (Hired)', 'Hire Date (YYYY-MM)', 'Lead Source', 'Lead Year', 'Lead Brokerage', 'Hire vs. Lead Gap (yrs)'
+      'Agent Name', 'Brokerage', 'Hire Date (YYYY-MM)', 'Lead Source', 'Lead Year', 'Hire vs. Lead Gap (yrs)'
     ];
-
     const rows = data.map((row: any) => [
-      row.agent, row.company, row.date, row.source || 'N/A', row.leadYear || 'N/A', row.leadBrokerage || 'N/A', row.gap ?? 'N/A'
+      row.agent, row.company, row.date, row.source || 'N/A', row.leadYear || 'N/A', row.gap || 'N/A'
     ]);
-
     const csvContent = [header, ...rows]
       .map((r: (string | number)[]) =>
-        r.map((v: string | number) => `"${String(v).replace(/"/g, '""')}"`).join(',')
-      )
+        r.map((v: string | number) => `"${v}"`).join(','))
       .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'conversions_report.csv'; // Changed filename slightly for clarity
+    a.download = 'converted_agents.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  // Download brokerages by year CSV
   const downloadBrokerageReport = () => {
     if (!report || !report.brokeragesByYear?.length) {
       alert("No brokerage data to export.");
       return;
     }
-
-    const header = ["Hire Year", "Brokerage (Hired)", "Conversions", "Total Leads Involved", "Rate"];
+    const header = ["Year", "Brokerage", "Conversions", "Leads", "Rate"];
     const rows: (string | number)[][] = [];
-
     report.brokeragesByYear
       .filter((block: any) => block.year && block.year !== 'null' && !isNaN(Number(block.year)))
       .forEach((block: any) => {
-        const year = block.year; // This is now Hire Year
+        const year = block.year;
         block.brokerages.forEach((item: any) => {
           rows.push([year, item.name, item.conversions, item.leads, item.rate]);
         });
       });
-
     const csvContent = [header, ...rows]
-      .map((r: (string | number)[]) => r.map((v: string | number) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(","))
       .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "brokerage_by_hire_year_report.csv"; // Changed filename
+    a.download = "brokerage_report.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -343,65 +263,60 @@ export default function Home() {
   return (
     <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
       <h1 className="text-3xl font-bold mb-6">📊 Growth & Leads File Parser</h1>
-
       <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
-        <div className="flex flex-col">
-          <label className="font-medium mb-1">📂 Upload Growth Files (Hires)</label>
-          <input type="file" multiple onChange={handleFileUpload} className="file-input" />
+        <div>
+          <label className="block mb-1 font-medium">Upload Growth Data File(s) (Hires)</label>
+          <input type="file" multiple onChange={handleGrowthUpload} className="file-input" />
         </div>
-        <div className="flex flex-col">
-          <label className="font-medium mb-1">📂 Upload Leads Files</label>
+        <div>
+          <label className="block mb-1 font-medium">Upload Leads File(s)</label>
           <input type="file" multiple onChange={handleLeadsUpload} className="file-input" />
         </div>
         <button onClick={generateReport} className="btn btn-primary">Generate Report</button>
-        <button onClick={downloadCSV} className="btn btn-outline">⬇️ Export Conversions CSV</button>
+        <button onClick={downloadCSV} className="btn btn-outline">⬇️ Export CSV</button>
       </div>
-
       {report && (
         <section className="space-y-8">
           {/* Yearly */}
           <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">🎯 Hire-Year Conversion Summary</h2>
+            <h2 className="text-lg font-semibold mb-2">🎯 Hire-Year Conversions</h2>
             <ul className="list-disc list-inside space-y-1">
               {report.yearly.map((item: any) => (
-                <li key={item.name}>{item.name} (Hire Year): {item.conversions}/{item.totalHires || item.leads} Hires → {item.rate} Conversion Rate</li>
+                <li key={item.name}>{item.name}: {item.conversions}/{item.leads} → {item.rate}</li>
               ))}
             </ul>
           </div>
-
           {/* Sources */}
           <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">📆 Source Breakdown by Hire Year (All Conversions)</h2>
+            <h2 className="text-lg font-semibold mb-2">📆 Source Breakdown by Hire Year</h2>
             {report.sourcesByYear.map((block: any) => (
               <div key={block.year} className="mb-4">
-                <h3 className="text-base font-medium mb-1">Hire Year: {block.year}</h3>
+                <h3 className="text-base font-medium mb-1">{block.year}</h3>
                 <ul className="list-disc list-inside space-y-1">
                   {block.sources.map((s: any) => (
-                    <li key={s.name}>{s.name}: {s.conversions} Conv. / {s.leads} Leads Involved → {s.rate}</li>
+                    <li key={s.name}>{s.name}: {s.conversions}/{s.leads} → {s.rate}</li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-
           {/* Brokerages */}
           <div className="bg-white rounded-xl shadow p-5">
             <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-semibold">🏢 Brokerages by Hire Year</h2>
+              <h2 className="text-lg font-semibold">🏢 Brokerages by Year</h2>
               <button onClick={downloadBrokerageReport} className="btn btn-outline">
                 ⬇️ Export Brokerages CSV
               </button>
             </div>
-
             {report.brokeragesByYear.map((block: any) => (
-              <details key={block.year} className="mb-4" open={report.brokeragesByYear.length < 3}> {/* Open by default if few years */}
-                <summary className="cursor-pointer font-medium">Hire Year: {block.year}</summary>
+              <details key={block.year} className="mb-4">
+                <summary className="cursor-pointer font-medium">{block.year}</summary>
                 <table className="table-auto w-full mt-2 border text-left text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="px-2 py-1">Brokerage (Hired)</th>
+                      <th className="px-2 py-1">Brokerage</th>
                       <th className="px-2 py-1">Conversions</th>
-                      <th className="px-2 py-1">Total Leads Involved</th>
+                      <th className="px-2 py-1">Leads</th>
                       <th className="px-2 py-1">Rate</th>
                     </tr>
                   </thead>
