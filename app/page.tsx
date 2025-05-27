@@ -109,15 +109,15 @@ if (!leadMap.has(normalizedName)) {
 const matched = parsedData.map((agent) => {
       const name = agent.agent.toLowerCase().replace(/\s+/g, ' ').trim();
       const match = leadMap.get(name);
-      const hireYear = parseInt(agent.hireYear); // agent.hireYear is already a number
+      const hireYear = parseInt(agent.hireYear);
       const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
 
       return {
         ...agent,
         isConversion: !!match && hireYear >= (leadYear || 0),
         source: match?.source || 'N/A',
-  leadYear: match?.leadYear || null, // Store as string or null
-        leadBrokerage: match?.leadBrokerage || 'N/A', // Store lead brokerage for potential use
+  leadYear: match?.leadYear || null,
+        leadBrokerage: match?.leadBrokerage || 'N/A',
         gap: leadYear !== null ? hireYear - leadYear : 'N/A',
       };
     });
@@ -157,8 +157,8 @@ const brokerageLeadsByYearFromWindow = (window as any).brokerageLeadsByYear as M
 
     const yearlyReportMap = new Map<string, { totalHires: number; conversions: number; leads: number }>();
     const allRelevantYears = new Set([
-        ...Array.from(hiresAndConversionsByHireYear.keys()),
-        ...Array.from(leadCountsByYearFromWindow.keys())
+        ...Array.from(hiresAndConversionsByHireYear.keys()), // Convert iterators to arrays
+        ...Array.from(leadCountsByYearFromWindow.keys())    // Convert iterators to arrays
     ]);
 
 
@@ -167,7 +167,7 @@ const brokerageLeadsByYearFromWindow = (window as any).brokerageLeadsByYear as M
         yearlyReportMap.set(yearStr, {
             totalHires: hcData.hires,
             conversions: hcData.conversions,
-            leads: leadCountsByYearFromWindow.get(yearStr) || 0 // Total leads generated in this year
+            leads: leadCountsByYearFromWindow.get(yearStr) || 0
         });
     });
 
@@ -195,7 +195,8 @@ const sourcesByHireYearNew = new Map<string, Map<string, { leads: number; conver
 tempSourcesData.forEach((sourceMap, hireYearStr) => {
       const finalSourceMapForReport = new Map<string, { leads: number; conversions: number }>();
       const sourcesForHireYearFromMatrix = sourceYearMatrixFromWindow.get(hireYearStr) || new Map<string, number>();
-      const allPossibleSources = new Set([...sourceMap.keys(), ...sourcesForHireYearFromMatrix.keys()]);
+      // Corrected line: Convert Map iterators to arrays before spreading
+      const allPossibleSources = new Set([...Array.from(sourceMap.keys()), ...Array.from(sourcesForHireYearFromMatrix.keys())]);
 
       allPossibleSources.forEach(source => {
         const conversions = sourceMap.get(source)?.conversions || 0;
@@ -319,7 +320,7 @@ const csvContent = [header, ...rows]
     URL.revokeObjectURL(url);
   };
 
-  const downloadBrokerageReport = () => { // Corrected line: ensure '=>' is on the same line or remove unnecessary space if present.
+  const downloadBrokerageReport = () => {
 if (!report || !report.brokeragesByYear?.length) {
       alert("No brokerage data to export.");
       return;
@@ -406,7 +407,7 @@ font-bold mb-6">📊 Growth & Leads File Parser</h1>
     </div>
 
             {report.brokeragesByYear.map((block: any) => (
-              <details key={block.year} className="mb-4" open={report.brokeragesByYear.length < 3}> {/* Open by default if few years */}
+              <details key={block.year} className="mb-4" open={report.brokeragesByYear.length < 3}>
                 <summary className="cursor-pointer font-medium">Hire Year: {block.year}</summary>
                 <table className="table-auto w-full mt-2 border text-left text-sm">
       <thead>
