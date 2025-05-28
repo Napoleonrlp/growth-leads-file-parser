@@ -216,31 +216,28 @@ tempSourcesData.forEach((sourceMap, hireYearStr) => {
     });
 
 // --- Brokerages Report (by Hire Year) — FIXED UNIQUE LEADS ONLY ---
-const uniqueLeadsByHireYearBrokerage = new Map(); // Map<hireYearStr, Map<brokerageOfHire, Set<normalizedLeadName>>>
+const uniqueLeadsByHireYearBrokerage = new Map<string, Map<string, Set<string>>>();
 parsedData.forEach((row: any) => {
   if (row.isConversion) {
     const hireYearStr = String(row.hireYear);
     const brokerageOfHire = (row.company || 'Unknown').trim();
-    // Use the matched lead name, not the agent name, for unique lead attribution
     const normalizedLeadName = (row.agent || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
     if (!uniqueLeadsByHireYearBrokerage.has(hireYearStr)) uniqueLeadsByHireYearBrokerage.set(hireYearStr, new Map());
-    const brokerageMap = uniqueLeadsByHireYearBrokerage.get(hireYearStr);
+    const brokerageMap = uniqueLeadsByHireYearBrokerage.get(hireYearStr)!;
 
     if (!brokerageMap.has(brokerageOfHire)) brokerageMap.set(brokerageOfHire, new Set());
-    const leadsSet = brokerageMap.get(brokerageOfHire);
+    const leadsSet = brokerageMap.get(brokerageOfHire)!;
 
     leadsSet.add(normalizedLeadName);
   }
 });
 
-// Now, summarize conversions and unique leads per brokerage, per year
-const brokeragesByHireYearNew = new Map(); // Map<hireYearStr, Map<brokerageOfHire, { leads: number, conversions: number }>>
+const brokeragesByHireYearNew = new Map<string, Map<string, { leads: number; conversions: number }>>();
 
 uniqueLeadsByHireYearBrokerage.forEach((brokerageMap, hireYearStr) => {
-  const finalBrokerageMapForReport = new Map();
-  brokerageMap.forEach((leadsSet, brokerageOfHire) => {
-    // Find all conversions for this brokerage and year
+  const finalBrokerageMapForReport = new Map<string, { leads: number; conversions: number }>();
+  brokerageMap.forEach((leadsSet: Set<string>, brokerageOfHire: string) => {
     const conversionsCount = parsedData.filter(row =>
       row.isConversion &&
       String(row.hireYear) === hireYearStr &&
@@ -248,13 +245,12 @@ uniqueLeadsByHireYearBrokerage.forEach((brokerageMap, hireYearStr) => {
     ).length;
 
     finalBrokerageMapForReport.set(brokerageOfHire, {
-      leads: leadsSet.size,         // unique leads that converted
-      conversions: conversionsCount // # of conversions
+      leads: leadsSet.size,
+      conversions: conversionsCount
     });
   });
   brokeragesByHireYearNew.set(hireYearStr, finalBrokerageMapForReport);
 });
-
 
 const sortMap = (map: Map<string, any>) =>
       Array.from(map.entries())
