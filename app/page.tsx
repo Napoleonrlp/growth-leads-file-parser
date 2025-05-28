@@ -1,7 +1,10 @@
 "use client";
 
+import React from "react";
+"use client";
 import { useState } from "react";
 import * as XLSX from "xlsx";
+
 
 export default function Home() {
   const [parsedData, setParsedData] = useState<any[]>([]);
