@@ -215,46 +215,46 @@ tempSourcesData.forEach((sourceMap, hireYearStr) => {
       }
     });
 
-// --- Brokerages Report (by Hire Year) ---
-    const tempBrokeragesData = new Map<string, Map<string, { conversions: number, accumulatedLeads: number, distinctLeadBrokeragePools: Set<string> }>>();
+// --- Brokerages Report (by Hire Year) — FIXED UNIQUE LEADS ONLY ---
+const uniqueLeadsByHireYearBrokerage = new Map(); // Map<hireYearStr, Map<brokerageOfHire, Set<normalizedLeadName>>>
 parsedData.forEach((row: any) => {
-      if (row.isConversion) {
-        const hireYearStr = String(row.hireYear);
-        const brokerageOfHire = (row.company || 'Unknown').trim();
-        const brokerageOfLead = (row.leadBrokerage || 'N/A').trim();
-        const leadYearStr = String(row.leadYear);
+  if (row.isConversion) {
+    const hireYearStr = String(row.hireYear);
+    const brokerageOfHire = (row.company || 'Unknown').trim();
+    // Use the matched lead name, not the agent name, for unique lead attribution
+    const normalizedLeadName = (row.agent || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-    const leadBrokeragePoolKey = `${leadYearStr}_${brokerageOfLead}`;
+    if (!uniqueLeadsByHireYearBrokerage.has(hireYearStr)) uniqueLeadsByHireYearBrokerage.set(hireYearStr, new Map());
+    const brokerageMap = uniqueLeadsByHireYearBrokerage.get(hireYearStr);
 
-        if (!tempBrokeragesData.has(hireYearStr)) {
-          tempBrokeragesData.set(hireYearStr, new Map());
-        }
-        const hireYearBrokerageMap = tempBrokeragesData.get(hireYearStr)!;
+    if (!brokerageMap.has(brokerageOfHire)) brokerageMap.set(brokerageOfHire, new Set());
+    const leadsSet = brokerageMap.get(brokerageOfHire);
 
-        if (!hireYearBrokerageMap.has(brokerageOfHire)) {
-          hireYearBrokerageMap.set(brokerageOfHire, { conversions: 0, accumulatedLeads: 0, distinctLeadBrokeragePools: new Set() });
-        }
-        const
-brokerageEntry = hireYearBrokerageMap.get(brokerageOfHire)!;
+    leadsSet.add(normalizedLeadName);
+  }
+});
 
-        brokerageEntry.conversions += 1;
+// Now, summarize conversions and unique leads per brokerage, per year
+const brokeragesByHireYearNew = new Map(); // Map<hireYearStr, Map<brokerageOfHire, { leads: number, conversions: number }>>
 
-        if (leadYearStr && leadYearStr !== 'null' && brokerageOfLead !== 'N/A' && !brokerageEntry.distinctLeadBrokeragePools.has(leadBrokeragePoolKey)) {
-          const leadsFromThisSpecificBrokeragePool = brokerageLeadsByYearFromWindow.get(leadYearStr)?.get(brokerageOfLead) ||
-0;
-          brokerageEntry.accumulatedLeads += leadsFromThisSpecificBrokeragePool;
-          brokerageEntry.distinctLeadBrokeragePools.add(leadBrokeragePoolKey);
-        }
-      }
+uniqueLeadsByHireYearBrokerage.forEach((brokerageMap, hireYearStr) => {
+  const finalBrokerageMapForReport = new Map();
+  brokerageMap.forEach((leadsSet, brokerageOfHire) => {
+    // Find all conversions for this brokerage and year
+    const conversionsCount = parsedData.filter(row =>
+      row.isConversion &&
+      String(row.hireYear) === hireYearStr &&
+      (row.company || 'Unknown').trim() === brokerageOfHire
+    ).length;
+
+    finalBrokerageMapForReport.set(brokerageOfHire, {
+      leads: leadsSet.size,         // unique leads that converted
+      conversions: conversionsCount // # of conversions
     });
-const brokeragesByHireYearNew = new Map<string, Map<string, { leads: number; conversions: number }>>();
-tempBrokeragesData.forEach((brokerageMap, hireYearStr) => {
-      const finalBrokerageMapForReport = new Map<string, { leads: number; conversions: number }>();
-      brokerageMap.forEach((data, brokerage) => {
-        finalBrokerageMapForReport.set(brokerage, { leads: data.accumulatedLeads, conversions: data.conversions });
-      });
-      brokeragesByHireYearNew.set(hireYearStr, finalBrokerageMapForReport);
-    });
+  });
+  brokeragesByHireYearNew.set(hireYearStr, finalBrokerageMapForReport);
+});
+
 
 const sortMap = (map: Map<string, any>) =>
       Array.from(map.entries())
