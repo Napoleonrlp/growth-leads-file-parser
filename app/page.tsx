@@ -613,5 +613,4 @@ allBrokerageYears.forEach((hireYearStr) => {
       </section>
     )}
   </main>
-);
 }
