@@ -432,7 +432,7 @@ allBrokerageYears.forEach((hireYearStr) => {
     URL.revokeObjectURL(url);
   };
 
-  return (
+ return (
     <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
       <h1 className="text-3xl font-bold mb-6">
         📊 Growth & Leads File Parser
@@ -463,6 +463,7 @@ allBrokerageYears.forEach((hireYearStr) => {
         <button
           onClick={generateReport}
           className="btn btn-primary"
+          disabled={isLoading}
         >
           Generate Report
         </button>
@@ -473,7 +474,20 @@ allBrokerageYears.forEach((hireYearStr) => {
           ⬇️ Export Conversions CSV
         </button>
       </div>
-      {report && (
+
+      {/* Spinner appears while loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-10">
+          <svg className="animate-spin h-8 w-8 mr-3 text-blue-600" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span className="text-lg font-medium text-blue-800">Generating report, please wait…</span>
+        </div>
+      )}
+
+      {/* Report UI renders only when not loading */}
+      {!isLoading && report && (
         <section className="space-y-8">
           {/* Yearly */}
           <div className="bg-white rounded-xl shadow p-5">
@@ -527,7 +541,6 @@ allBrokerageYears.forEach((hireYearStr) => {
               <details
                 key={block.year}
                 className="mb-4"
-                open={report.brokeragesByYear.length < 3}
               >
                 <summary className="cursor-pointer font-medium">
                   Hire Year: {block.year}
@@ -594,23 +607,8 @@ allBrokerageYears.forEach((hireYearStr) => {
               </details>
             ))}
           </div>
-
-       {/* <<< PLACE THE SPINNER HERE >>> */}
-    {isLoading && (
-      <div className="flex items-center justify-center py-10">
-        <svg className="animate-spin h-8 w-8 mr-3 text-blue-600" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <span className="text-lg font-medium text-blue-800">Generating report, please wait…</span>
-      </div>
-    )}
-
-    {/* Report UI renders only when not loading */}
-    {!isLoading && report && (
-      <section className="space-y-8">
-        {/* ...your report UI... */}
-      </section>
-    )}
-  </main>
+        </section>
+      )}
+    </main>
+  );
 }
