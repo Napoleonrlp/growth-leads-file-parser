@@ -228,60 +228,60 @@ export default function Home() {
       brokeragesByHireYearNew.set(hireYearStr, finalBrokerageMapForReport);
     });
 
-    // --- SOURCE BREAKDOWN LOGIC ---
-    const brokerageSourceBreakdownByHireYear = new Map();
-    const allLeadsRaw = (window as any).leadsRaw || [];
-    allBrokerageYears.forEach((hireYearStr) => {
-      const perBrokerage = new Map();
-      const brokerages = brokeragesByHireYearNew.get(hireYearStr)
-        ? Array.from(brokeragesByHireYearNew.get(hireYearStr).keys())
-        : [];
-      brokerages.forEach((brokerage) => {
-        const leads = allLeadsRaw.filter(
-          (row: any) =>
-            String(new Date(row["lead_created_at"] || row["created_at"]).getFullYear()) === hireYearStr &&
-            (row["accepted_agent_external_label"]?.trim() || "N/A") === brokerage
-        );
-        const leadsBySource: { [key: string]: any[] } = {};
-        leads.forEach((row: any) => {
-          const blob = row["lead_text"] || row["lead_agent_text"] || "";
-          const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
-          const source = sourceMatch ? sourceMatch[1].trim().toUpperCase() : "N/A";
-          if (!leadsBySource[source]) leadsBySource[source] = [];
-          leadsBySource[source].push(row);
-        });
-        const conversions = parsedData.filter(
-          (row: any) =>
-            row.isConversion &&
-            String(row.hireYear) === hireYearStr &&
-            (row.company || "Unknown").trim() === brokerage
-        );
-        const conversionsBySource: { [key: string]: number } = {};
-        conversions.forEach((row: any) => {
-          const source = (row.source || "N/A").toUpperCase();
-          if (!conversionsBySource[source]) conversionsBySource[source] = 0;
-          conversionsBySource[source]++;
-        });
-        const sources = new Set([
-          ...Object.keys(leadsBySource),
-          ...Object.keys(conversionsBySource),
-        ]);
-        const sourceList = Array.from(sources)
-          .map((source) => {
-            const leadsCount = (leadsBySource[source] || []).length;
-            const conversionsCount = conversionsBySource[source] || 0;
-            return {
-              source,
-              leads: leadsCount,
-              conversions: conversionsCount,
-              rate: leadsCount > 0 ? ((conversionsCount / leadsCount) * 100).toFixed(2) + "%" : "0.00%",
-            };
-          })
-          .sort((a, b) => b.conversions - a.conversions || b.leads - a.leads);
-        perBrokerage.set(brokerage, sourceList);
-      });
-      brokerageSourceBreakdownByHireYear.set(hireYearStr, perBrokerage);
+   // --- SOURCE BREAKDOWN LOGIC ---
+const brokerageSourceBreakdownByHireYear = new Map();
+const allLeadsRaw = (window as any).leadsRaw || [];
+allBrokerageYears.forEach((hireYearStr) => {
+  const perBrokerage = new Map();
+  const brokeragesMap = brokeragesByHireYearNew.get(hireYearStr);
+  const brokerages = brokeragesMap ? Array.from(brokeragesMap.keys()) : [];
+  brokerages.forEach((brokerage) => {
+    const leads = allLeadsRaw.filter(
+      (row: any) =>
+        String(new Date(row["lead_created_at"] || row["created_at"]).getFullYear()) === hireYearStr &&
+        (row["accepted_agent_external_label"]?.trim() || "N/A") === brokerage
+    );
+    const leadsBySource: { [key: string]: any[] } = {};
+    leads.forEach((row: any) => {
+      const blob = row["lead_text"] || row["lead_agent_text"] || "";
+      const sourceMatch = blob.match(/source:\s*([^\n]+)/i);
+      const source = sourceMatch ? sourceMatch[1].trim().toUpperCase() : "N/A";
+      if (!leadsBySource[source]) leadsBySource[source] = [];
+      leadsBySource[source].push(row);
     });
+    const conversions = parsedData.filter(
+      (row: any) =>
+        row.isConversion &&
+        String(row.hireYear) === hireYearStr &&
+        (row.company || "Unknown").trim() === brokerage
+    );
+    const conversionsBySource: { [key: string]: number } = {};
+    conversions.forEach((row: any) => {
+      const source = (row.source || "N/A").toUpperCase();
+      if (!conversionsBySource[source]) conversionsBySource[source] = 0;
+      conversionsBySource[source]++;
+    });
+    const sources = new Set([
+      ...Object.keys(leadsBySource),
+      ...Object.keys(conversionsBySource),
+    ]);
+    const sourceList = Array.from(sources)
+      .map((source) => {
+        const leadsCount = (leadsBySource[source] || []).length;
+        const conversionsCount = conversionsBySource[source] || 0;
+        return {
+          source,
+          leads: leadsCount,
+          conversions: conversionsCount,
+          rate: leadsCount > 0 ? ((conversionsCount / leadsCount) * 100).toFixed(2) + "%" : "0.00%",
+        };
+      })
+      .sort((a, b) => b.conversions - a.conversions || b.leads - a.leads);
+    perBrokerage.set(brokerage, sourceList);
+  });
+  brokerageSourceBreakdownByHireYear.set(hireYearStr, perBrokerage);
+});
+
 
     const sortMap = (map: Map<string, any>) =>
       Array.from(map.entries())
