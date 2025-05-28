@@ -8,6 +8,7 @@ export default function Home() {
   const [conversions, setConversions] = useState<any[]>([]);
   const [report, setReport] = useState<any | null>(null);
   const [openBrokerageSources, setOpenBrokerageSources] = useState<{ [key: string]: boolean }>({});
+const [isLoading, setIsLoading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -120,7 +121,10 @@ export default function Home() {
     }));
   };
 
-  const generateReport = () => {
+const generateReport = () => {
+  setIsLoading(true);
+  setTimeout(() => {
+    try {
 console.log("parsedData:", parsedData);
   console.log("leadsRaw:", (window as any).leadsRaw);
     if (parsedData.length === 0 || typeof (window as any).leadsRaw === "undefined") return;
@@ -343,7 +347,11 @@ allBrokerageYears.forEach((hireYearStr) => {
 
     setReport(sortedReport);
     (window as any).brokeragesByYear = sortedReport.brokeragesByYear;
-  };
+} finally {
+      setIsLoading(false);
+    }
+  }, 0); // <-- add the 0ms timeout
+};
 
   const downloadCSV = () => {
     const data = (window as any).conversions || [];
@@ -586,8 +594,24 @@ allBrokerageYears.forEach((hireYearStr) => {
               </details>
             ))}
           </div>
-        </section>
-      )}
-    </main>
-  );
+
+       {/* <<< PLACE THE SPINNER HERE >>> */}
+    {isLoading && (
+      <div className="flex items-center justify-center py-10">
+        <svg className="animate-spin h-8 w-8 mr-3 text-blue-600" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span className="text-lg font-medium text-blue-800">Generating report, please wait…</span>
+      </div>
+    )}
+
+    {/* Report UI renders only when not loading */}
+    {!isLoading && report && (
+      <section className="space-y-8">
+        {/* ...your report UI... */}
+      </section>
+    )}
+  </main>
+);
 }
