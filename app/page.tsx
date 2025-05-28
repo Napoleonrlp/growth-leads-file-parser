@@ -121,6 +121,8 @@ export default function Home() {
   };
 
   const generateReport = () => {
+console.log("parsedData:", parsedData);
+  console.log("leadsRaw:", (window as any).leadsRaw);
     if (parsedData.length === 0 || typeof (window as any).leadsRaw === "undefined") return;
     const leadCountsByYearFromWindow = (window as any).leadCountsByYear as Map<string, number> || new Map();
     const sourceYearMatrixFromWindow = (window as any).sourceYearMatrix as Map<string, Map<string, number>> || new Map();
