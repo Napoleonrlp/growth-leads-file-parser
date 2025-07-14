@@ -95,12 +95,15 @@ const [isLoading, setIsLoading] = useState(false);
       const match = leadMap.get(name);
       const hireYear = parseInt(agent.hireYear);
       const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
+       const isBridgemarqLead =
+        match?.leadBrokerage?.toLowerCase().trim() === "bridgemarq";
        const sameBrokerage =
-        match &&
-        agent.company &&
-        match.leadBrokerage &&
-        agent.company.toLowerCase().trim() ===
-          match.leadBrokerage.toLowerCase().trim();
+       isBridgemarqLead ||
+        (match &&
+          agent.company &&
+          match.leadBrokerage &&
+          agent.company.toLowerCase().trim() ===
+            match.leadBrokerage.toLowerCase().trim());
       return {
         ...agent,
     isConversion: !!match && sameBrokerage && hireYear >= (leadYear || 0),
