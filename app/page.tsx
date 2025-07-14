@@ -97,9 +97,14 @@ const [isLoading, setIsLoading] = useState(false);
       const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
        const isBridgemarqLead =
         (match?.leadBrokerage || "").toLowerCase().includes("bridgemarq");
+        const sameBrokerage =
+        isBridgemarqLead ||
+        (!!match &&
+          agent.company.toLowerCase().trim() ===
+            (match.leadBrokerage || "").toLowerCase().trim());
       return {
         ...agent,
-    isConversion: !!match && hireYear >= (leadYear || 0),
+  isConversion: !!match && hireYear >= (leadYear || 0) && sameBrokerage,
         isBridgemarqLead,
         source: match?.source || "N/A",
         leadYear: match?.leadYear || null,
