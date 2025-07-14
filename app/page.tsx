@@ -125,12 +125,9 @@ const generateReport = () => {
   setIsLoading(true);
   setTimeout(() => {
     try {
-console.log("parsedData:", parsedData);
-  console.log("leadsRaw:", (window as any).leadsRaw);
-    if (parsedData.length === 0 || typeof (window as any).leadsRaw === "undefined") return;
-    const leadCountsByYearFromWindow = (window as any).leadCountsByYear as Map<string, number> || new Map();
-    const sourceYearMatrixFromWindow = (window as any).sourceYearMatrix as Map<string, Map<string, number>> || new Map();
-    const brokerageLeadsByYearFromWindow = (window as any).brokerageLeadsByYear as Map<string, Map<string, number>> || new Map();
+ if (parsedData.length === 0 || typeof (window as any).leadsRaw === "undefined") return;
+      const leadCountsByYearFromWindow = (window as any).leadCountsByYear as Map<string, number> || new Map();
+      const sourceYearMatrixFromWindow = (window as any).sourceYearMatrix as Map<string, Map<string, number>> || new Map();
 
     // --- Yearly Report (by Hire Year) ---
     const hiresAndConversionsByHireYear = new Map<string, { hires: number; conversions: number }>();
