@@ -96,17 +96,11 @@ const [isLoading, setIsLoading] = useState(false);
       const hireYear = parseInt(agent.hireYear);
       const leadYear = match?.leadYear ? parseInt(match.leadYear) : null;
        const isBridgemarqLead =
-        match?.leadBrokerage?.toLowerCase().trim() === "bridgemarq";
-       const sameBrokerage =
-       isBridgemarqLead ||
-        (match &&
-          agent.company &&
-          match.leadBrokerage &&
-          agent.company.toLowerCase().trim() ===
-            match.leadBrokerage.toLowerCase().trim());
+        (match?.leadBrokerage || "").toLowerCase().includes("bridgemarq");
       return {
         ...agent,
-    isConversion: !!match && sameBrokerage && hireYear >= (leadYear || 0),
+    isConversion: !!match && hireYear >= (leadYear || 0),
+        isBridgemarqLead,
         source: match?.source || "N/A",
         leadYear: match?.leadYear || null,
         leadBrokerage: match?.leadBrokerage || "N/A",
