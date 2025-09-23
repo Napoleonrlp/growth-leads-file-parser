@@ -539,7 +539,7 @@ const generateReport = () => {
     .filter((year) => !Number.isNaN(year));
   const leadYears = leadSummaryTotals
     .map((item: any) => Number(item.year))
-    .filter((year) => !Number.isNaN(year));
+    .filter((year: number) => !Number.isNaN(year));
   const hireYearRange = hireYears.length
     ? `${Math.min(...hireYears)} – ${Math.max(...hireYears)}`
     : null;
