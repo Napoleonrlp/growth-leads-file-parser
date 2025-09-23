@@ -531,8 +531,11 @@ const generateReport = () => {
   );
   const totalHires = parsedData.length;
   const totalConversions = conversions.length;
-  const conversionRate = totalHires > 0
-    ? ((totalConversions / totalHires) * 100).toFixed(1)
+  const hireConversionRate = totalHires > 0
+    ? ((totalConversions / totalHires) * 100).toFixed(2)
+    : null;
+  const leadConversionRate = totalLeadsAssigned > 0
+    ? ((totalConversions / totalLeadsAssigned) * 100).toFixed(2)
     : null;
   const hireYears = parsedData
     .map((row) => Number(row.hireYear))
@@ -632,13 +635,6 @@ const generateReport = () => {
         <div className="hero__content">
           <span className="hero__eyebrow">Growth Intelligence</span>
           <h1 className="hero__title">Growth & Leads File Parser</h1>
-          <p className="hero__subtitle">
-            Upload IMS growth exports and Royal LePage lead-assign files to pinpoint which campaigns are driving brokerage conversions.
-          </p>
-          <div className="hero__meta">
-            <span className="tag">Automatic hire ↔ lead matching</span>
-            <span className="tag">Royal LePage brand styling</span>
-          </div>
         </div>
       </section>
 
@@ -718,10 +714,16 @@ const generateReport = () => {
               <span className="stat__label">Conversions matched</span>
               <span className="stat__value">{totalConversions}</span>
             </div>
-            {conversionRate && (
+            {hireConversionRate && (
               <div className="stat">
-                <span className="stat__label">Overall conversion rate</span>
-                <span className="stat__value">{conversionRate}%</span>
+                <span className="stat__label">Hire conversion rate</span>
+                <span className="stat__value">{hireConversionRate}%</span>
+              </div>
+            )}
+            {leadConversionRate && (
+              <div className="stat">
+                <span className="stat__label">Lead conversion rate</span>
+                <span className="stat__value">{leadConversionRate}%</span>
               </div>
             )}
             {hireYearRange && (
@@ -759,7 +761,11 @@ const generateReport = () => {
                 <ul>
                   {report.yearly.map((item: any) => (
                     <li key={item.name}>
-                      <strong>{item.name}</strong>: {item.conversions} conversions from {item.leads} leads out of {item.totalHires} hires → {item.rate}
+                      <strong>{item.name}</strong>: {item.conversions} conversions from {item.leads} leads out of {item.totalHires} hires → {item.rate} (lead) /
+                      {" "}
+                      {item.totalHires > 0
+                        ? `${((item.conversions / item.totalHires) * 100).toFixed(2)}% (hire)`
+                        : "—"}
                     </li>
                   ))}
                 </ul>
