@@ -239,7 +239,7 @@ const [isLoading, setIsLoading] = useState(false);
     }));
   };
 
-  const generateReport = () => {
+const generateReport = () => {
     setIsLoading(true);
     setTimeout(() => {
       try {
@@ -524,6 +524,29 @@ const [isLoading, setIsLoading] = useState(false);
     }, 0);
   };
 
+  const leadSummaryTotals = report?.leadSummary?.totalsByYear ?? [];
+  const totalLeadsAssigned = leadSummaryTotals.reduce(
+    (sum: number, item: any) => sum + (item.leads || 0),
+    0
+  );
+  const totalHires = parsedData.length;
+  const totalConversions = conversions.length;
+  const conversionRate = totalHires > 0
+    ? ((totalConversions / totalHires) * 100).toFixed(1)
+    : null;
+  const hireYears = parsedData
+    .map((row) => Number(row.hireYear))
+    .filter((year) => !Number.isNaN(year));
+  const leadYears = leadSummaryTotals
+    .map((item: any) => Number(item.year))
+    .filter((year) => !Number.isNaN(year));
+  const hireYearRange = hireYears.length
+    ? `${Math.min(...hireYears)} – ${Math.max(...hireYears)}`
+    : null;
+  const leadYearRange = leadYears.length
+    ? `${Math.min(...leadYears)} – ${Math.max(...leadYears)}`
+    : null;
+
   const downloadCSV = () => {
     const data = (window as any).conversions || [];
     if (!data.length) return alert("No conversion data to download.");
@@ -603,195 +626,267 @@ const [isLoading, setIsLoading] = useState(false);
     URL.revokeObjectURL(url);
   };
 
- return (
-    <main className="p-4 md:p-8 max-w-6xl mx-auto text-sm md:text-base">
-      <h1 className="text-3xl font-bold mb-6">
-        📊 Growth & Leads File Parser
-      </h1>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center mb-8">
-        <div className="flex flex-col">
-          <label className="font-medium mb-1">
-            📂 Upload Growth Files (Hires)
-          </label>
-          <input
-            type="file"
-            multiple
-            onChange={handleFileUpload}
-            className="file-input"
-          />
+  return (
+    <main className="page-shell">
+      <section className="hero">
+        <div className="hero__content">
+          <span className="hero__eyebrow">Growth Intelligence</span>
+          <h1 className="hero__title">Growth & Leads File Parser</h1>
+          <p className="hero__subtitle">
+            Upload IMS growth exports and Royal LePage lead-assign files to pinpoint which campaigns are driving brokerage conversions.
+          </p>
+          <div className="hero__meta">
+            <span className="tag">Automatic hire ↔ lead matching</span>
+            <span className="tag">Royal LePage brand styling</span>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <label className="font-medium mb-1">
-            📂 Upload Leads Files
-          </label>
-          <input
-            type="file"
-            multiple
-            onChange={handleLeadsUpload}
-            className="file-input"
-          />
-        </div>
-        <button
-          onClick={generateReport}
-          className="btn btn-primary"
-          disabled={isLoading}
-        >
-          Generate Report
-        </button>
-        <button
-          onClick={downloadCSV}
-          className="btn btn-outline"
-        >
-          ⬇️ Export Conversions CSV
-        </button>
-      </div>
+      </section>
 
-      {/* Spinner appears while loading */}
+      <section className="card action-panel">
+        <div className="section-heading">
+          <h2>Upload your datasets</h2>
+          <p>
+            Start with the latest IMS growth file, then add one or more lead-assign exports. Names are normalised, brokerages are aligned, and conversions are flagged automatically.
+          </p>
+        </div>
+        <div className="action-panel__inputs">
+          <div className="form-block">
+            <label htmlFor="growth-upload">📂 Upload Growth Files (Hires)</label>
+            <input
+              id="growth-upload"
+              type="file"
+              multiple
+              onChange={handleFileUpload}
+              className="file-input"
+            />
+          </div>
+          <div className="form-block">
+            <label htmlFor="lead-upload">💼 Upload Leads Files</label>
+            <input
+              id="lead-upload"
+              type="file"
+              multiple
+              onChange={handleLeadsUpload}
+              className="file-input"
+            />
+          </div>
+        </div>
+        <div className="cta-row">
+          <button
+            onClick={generateReport}
+            className="btn btn-primary"
+            disabled={isLoading || !parsedData.length}
+          >
+            {isLoading ? "Processing…" : "Generate Report"}
+          </button>
+          <button
+            onClick={downloadCSV}
+            className="btn btn-outline"
+            disabled={!conversions.length}
+          >
+            ⬇️ Export Conversions CSV
+          </button>
+          <button
+            onClick={downloadBrokerageReport}
+            className="btn btn-outline"
+            disabled={!report?.brokeragesByYear?.length}
+          >
+            ⬇️ Export Brokerages CSV
+          </button>
+        </div>
+        <p className="muted-text">
+          Tip: Drag multiple files at once. Growth files must include <strong>Agent</strong>, <strong>Company Name</strong>, and a valid <strong>Hire Date</strong>; lead files should contain <strong>lead_created_at</strong>, <strong>rlp_lead_detailed_source</strong>, and <strong>accepted_agent_external_label</strong>.
+        </p>
+      </section>
+
+      {(totalHires || totalConversions || totalLeadsAssigned) ? (
+        <section className="card card--muted">
+          <div className="section-heading">
+            <h2>Snapshot</h2>
+            <p>High-level roll-up based on the files you have loaded.</p>
+          </div>
+          <div className="stat-grid">
+            <div className="stat">
+              <span className="stat__label">Total hires processed</span>
+              <span className="stat__value">{totalHires}</span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Assigned leads analysed</span>
+              <span className="stat__value">{totalLeadsAssigned}</span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Conversions matched</span>
+              <span className="stat__value">{totalConversions}</span>
+            </div>
+            {conversionRate && (
+              <div className="stat">
+                <span className="stat__label">Overall conversion rate</span>
+                <span className="stat__value">{conversionRate}%</span>
+              </div>
+            )}
+            {hireYearRange && (
+              <div className="stat stat--neutral">
+                <span className="stat__label">Hire years covered</span>
+                <span className="stat__value">{hireYearRange}</span>
+              </div>
+            )}
+            {leadYearRange && (
+              <div className="stat stat--neutral">
+                <span className="stat__label">Lead years represented</span>
+                <span className="stat__value">{leadYearRange}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
       {isLoading && (
-        <div className="flex items-center justify-center py-10">
-          <svg className="animate-spin h-8 w-8 mr-3 text-blue-600" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          <span className="text-lg font-medium text-blue-800">Generating report, please wait…</span>
+        <div className="loading-indicator" role="status">
+          <div className="spinner" aria-hidden="true" />
+          <span>Generating report. Large files can take a few seconds…</span>
         </div>
       )}
 
-      {/* Report UI renders only when not loading */}
       {!isLoading && report && (
-        <section className="space-y-8">
-          {/* Yearly */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">
-              🎯 Hire-Year Conversion Summary
-            </h2>
-            <ul className="list-disc list-inside space-y-1">
-              {report.yearly.map((item: any) => (
-                <li key={item.name}>
-                  {item.name} (Hire Year): {item.conversions} Conv. / {item.leads} Leads ({item.totalHires} Total Hires) → {item.rate}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Sources */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">
-              📆 Source Breakdown by Hire Year (All Conversions)
-            </h2>
-            {report.sourcesByYear.map((block: any) => (
-              <div key={block.year} className="mb-4">
-                <h3 className="text-base font-medium mb-1">
-                  Hire Year: {block.year}
-                </h3>
-                <ul className="list-disc list-inside space-y-1">
-                  {block.sources.map((s: any) => (
-                    <li key={s.name}>
-                      {s.name}: {s.conversions} Conv. / {s.leads} Leads → {s.rate}
+        <>
+          <section className="card">
+            <div className="section-heading">
+              <h2>Hire-year conversion summary</h2>
+              <p>Hires, leads, and conversions grouped by hire year.</p>
+            </div>
+            {report.yearly.length ? (
+              <div className="list-hierarchy">
+                <ul>
+                  {report.yearly.map((item: any) => (
+                    <li key={item.name}>
+                      <strong>{item.name}</strong>: {item.conversions} conversions from {item.leads} leads out of {item.totalHires} hires → {item.rate}
                     </li>
                   ))}
                 </ul>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="empty-state">No hire data yet. Upload files and generate a report to see results.</div>
+            )}
+          </section>
 
-          {/* Brokerages */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-semibold">
-                🏢 Brokerages by Hire Year
-              </h2>
-              <button
-                onClick={downloadBrokerageReport}
-                className="btn btn-outline"
-              >
-                ⬇️ Export Brokerages CSV
-              </button>
+          <section className="card">
+            <div className="section-heading">
+              <h2>Source performance by hire year</h2>
+              <p>Which campaigns delivered conversions per hire year.</p>
             </div>
-            {report.brokeragesByYear.map((block: any) => (
-              <details
-                key={block.year}
-                className="mb-4"
-              >
-                <summary className="cursor-pointer font-medium">
-                  Hire Year: {block.year}
-                </summary>
-                <table className="table-auto w-full mt-2 border text-left text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="px-2 py-1">Brokerage (Hired)</th>
-                      <th className="px-2 py-1">Conversions</th>
-                      <th className="px-2 py-1">Total Leads Involved</th>
-                      <th className="px-2 py-1">Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {block.brokerages.map((item: any) => (
-                      <React.Fragment key={item.name}>
-                        <tr className="border-b">
-                          <td className="px-2 py-1">
-                            <button
-                              className="font-bold text-blue-600 underline"
-                              onClick={() => toggleBrokerageSources(block.year, item.name)}
-                              type="button"
-                            >
-                              {openBrokerageSources[`${block.year}___${item.name}`] ? "▼" : "▶"} {item.name}
-                            </button>
-                          </td>
-                          <td className="px-2 py-1">{item.conversions}</td>
-                          <td className="px-2 py-1">{item.leads}</td>
-                          <td className="px-2 py-1">{item.rate}</td>
-                        </tr>
-                        {openBrokerageSources[`${block.year}___${item.name}`] && (
-                          <tr>
-                            <td colSpan={4} className="bg-gray-50 px-4 py-2">
-                              <div>
-                                <strong>Source Breakdown:</strong>
-                                <table className="w-full text-xs mt-2">
-                                  <thead>
-                                    <tr>
-                                      <th className="text-left px-2">Source</th>
-                                      <th className="text-left px-2">Leads</th>
-                                      <th className="text-left px-2">Conversions</th>
-                                      <th className="text-left px-2">Rate</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {(report.brokerageSourceBreakdownByHireYear.get(block.year)?.get(item.name) || []).map((src: any) => (
-                                      <tr key={src.source}>
-                                        <td className="px-2">{src.source}</td>
-                                        <td className="px-2">{src.leads}</td>
-                                        <td className="px-2">{src.conversions}</td>
-                                        <td className="px-2">{src.rate}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </details>
-            ))}
-          </div>
+            {report.sourcesByYear.length ? (
+              <div className="list-hierarchy">
+                {report.sourcesByYear.map((block: any) => (
+                  <div key={block.year}>
+                    <h3 className="muted-text">Hire Year: {block.year}</h3>
+                    <ul>
+                      {block.sources.map((s: any) => (
+                        <li key={s.name}>
+                          <strong>{s.name}</strong>: {s.conversions} conversions / {s.leads} leads → {s.rate}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">We could not find any matched conversions yet.</div>
+            )}
+          </section>
 
-          {/* Lead Assignments */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-2">
-              📈 Lead Assignments (Lead Year)
-            </h2>
+          <section className="card">
+            <div className="section-heading">
+              <h2>Brokerages by hire year</h2>
+              <p>Drill into each brokerage to see lead sources and conversion performance.</p>
+            </div>
+            {report.brokeragesByYear.length ? (
+              <div className="list-hierarchy">
+                {report.brokeragesByYear.map((block: any) => (
+                  <details key={block.year} className="mb-3">
+                    <summary>Hire Year: {block.year}</summary>
+                    <div className="table-wrapper">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Brokerage (Hired)</th>
+                            <th>Conversions</th>
+                            <th>Total Leads Involved</th>
+                            <th>Rate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {block.brokerages.map((item: any) => (
+                            <React.Fragment key={item.name}>
+                              <tr>
+                                <td>
+                                  <button
+                                    className="link-button"
+                                    onClick={() => toggleBrokerageSources(block.year, item.name)}
+                                    type="button"
+                                    aria-expanded={Boolean(openBrokerageSources[`${block.year}___${item.name}`])}
+                                  >
+                                    {openBrokerageSources[`${block.year}___${item.name}`] ? "▼" : "▶"} {item.name}
+                                  </button>
+                                </td>
+                                <td>{item.conversions}</td>
+                                <td>{item.leads}</td>
+                                <td>{item.rate}</td>
+                              </tr>
+                              {openBrokerageSources[`${block.year}___${item.name}`] && (
+                                <tr>
+                                  <td colSpan={4}>
+                                    <div>
+                                      <strong>Source breakdown</strong>
+                                      <table className="source-table">
+                                        <thead>
+                                          <tr>
+                                            <th>Source</th>
+                                            <th>Leads</th>
+                                            <th>Conversions</th>
+                                            <th>Rate</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(report.brokerageSourceBreakdownByHireYear.get(block.year)?.get(item.name) || []).map((src: any) => (
+                                            <tr key={src.source}>
+                                              <td>{src.source}</td>
+                                              <td>{src.leads}</td>
+                                              <td>{src.conversions}</td>
+                                              <td>{src.rate}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">Brokerage analytics will appear after generating your first report.</div>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="section-heading">
+              <h2>Lead assignments (lead year)</h2>
+              <p>Understand how many leads each source and brokerage received across the uploaded timeframe.</p>
+            </div>
 
             {report.leadSummary?.totalsByYear?.length ? (
-              <div className="mb-4">
-                <h3 className="text-base font-medium mb-1">Lead Volume</h3>
-                <ul className="list-disc list-inside space-y-1">
+              <div className="list-hierarchy">
+                <h3 className="muted-text">Lead volume</h3>
+                <ul>
                   {report.leadSummary.totalsByYear.map((item: any) => (
                     <li key={item.year}>
-                      {item.year}: {item.leads} Leads Assigned
+                      <strong>{item.year}</strong>: {item.leads} leads assigned
                     </li>
                   ))}
                 </ul>
@@ -799,15 +894,15 @@ const [isLoading, setIsLoading] = useState(false);
             ) : null}
 
             {report.leadSummary?.sourcesByYear?.length ? (
-              <div className="mb-4">
-                <h3 className="text-base font-medium mb-1">Sources</h3>
+              <div className="list-hierarchy" style={{ marginTop: "1.5rem" }}>
+                <h3 className="muted-text">Sources</h3>
                 {report.leadSummary.sourcesByYear.map((block: any) => (
-                  <div key={block.year} className="mb-2">
-                    <h4 className="font-medium">Lead Year: {block.year}</h4>
-                    <ul className="list-disc list-inside space-y-1">
+                  <div key={block.year}>
+                    <h4 className="muted-text">Lead Year: {block.year}</h4>
+                    <ul>
                       {block.sources.map((item: any) => (
                         <li key={item.name}>
-                          {item.name}: {item.leads} Leads
+                          {item.name}: {item.leads} leads
                         </li>
                       ))}
                     </ul>
@@ -817,15 +912,15 @@ const [isLoading, setIsLoading] = useState(false);
             ) : null}
 
             {report.leadSummary?.brokeragesByYear?.length ? (
-              <div>
-                <h3 className="text-base font-medium mb-1">Brokerages</h3>
+              <div className="list-hierarchy" style={{ marginTop: "1.5rem" }}>
+                <h3 className="muted-text">Brokerages</h3>
                 {report.leadSummary.brokeragesByYear.map((block: any) => (
-                  <div key={block.year} className="mb-2">
-                    <h4 className="font-medium">Lead Year: {block.year}</h4>
-                    <ul className="list-disc list-inside space-y-1">
+                  <div key={block.year}>
+                    <h4 className="muted-text">Lead Year: {block.year}</h4>
+                    <ul>
                       {block.brokerages.map((item: any) => (
                         <li key={item.name}>
-                          {item.name}: {item.leads} Leads
+                          {item.name}: {item.leads} leads
                         </li>
                       ))}
                     </ul>
@@ -833,10 +928,10 @@ const [isLoading, setIsLoading] = useState(false);
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No lead assignments available.</p>
+              <div className="empty-state">No lead assignment data detected.</div>
             )}
-          </div>
-        </section>
+          </section>
+        </>
       )}
     </main>
   );
